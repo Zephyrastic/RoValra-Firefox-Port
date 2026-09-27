@@ -417,6 +417,7 @@ async function callRobloxApiBackground(options) {
         body = null,
         headers = {},
         fullUrl = null,
+        credentials,
     } = options;
 
     let url;
@@ -437,6 +438,15 @@ async function callRobloxApiBackground(options) {
     }
 
     const fetchOptions = { method, headers: { ...headers } };
+
+    // Extension-origin fetches omit Roblox cookies by default, which makes
+    // authenticated endpoints (e.g. assetdelivery place downloads used by the
+    // Explorer access check) see an anonymous user. Callers that need the
+    // logged-in session opt in explicitly; everything else keeps the old
+    // cookie-less behavior.
+    if (credentials) {
+        fetchOptions.credentials = credentials;
+    }
 
     if (body) {
         if (typeof body === 'object') {

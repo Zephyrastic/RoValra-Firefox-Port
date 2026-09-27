@@ -4356,79 +4356,60 @@ function addBundleButton(rightToolbar) {
     console.log('%cRoValra Explorer: button added (bundle)', 'color:#FF4500');
 }
 
-function openExplorerLockedNotice() {
-    const body = document.createElement('div');
-    body.className = 'rovalra-explorer-locked-notice';
-    body.textContent = ts('createRoblox.explorer.noAccessDetails');
-    createOverlay({
-        title: ts('createRoblox.explorer.title'),
-        bodyContent: body,
-        maxWidth: '440px',
-        showLogo: true,
-    });
-}
-
-function createGameExplorerButton(placeId) {
-    const button = document.createElement('button');
-    button.id = 'rovalra-explorer-btn';
-    button.type = 'button';
-    button.className =
-        'rbx-menu-item btn-generic-more-sm rovalra-explorer-game-btn';
-    button.setAttribute('aria-label', ts('createRoblox.explorer.button'));
-    button.title = ts('createRoblox.explorer.button');
-    addTooltip(button, ts('createRoblox.explorer.button'));
-
-    const icon = document.createElement('span');
-    icon.className = 'rovalra-explorer-game-icon';
-    applyMaskIcon(icon, getAssets().explorerTreeIcon);
-    button.appendChild(icon);
-
-    button.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (button.dataset.rovalraExplorerLocked === 'true') {
-            openExplorerLockedNotice();
-            return;
-        }
-        const title = document.querySelector('h1.game-name');
-        const name =
-            title?.getAttribute('title') || title?.textContent?.trim();
-        openExplorer(placeId, name);
-    });
-
-    // Mount first, verify access in the background. Places this session can't
-    // download (not the owner / no permission) keep a visible button that
-    // explains why instead of silently never appearing.
-    canAccessAsset(parseInt(placeId, 10)).then((ok) => {
-        if (ok || !button.isConnected) return;
-        button.dataset.rovalraExplorerLocked = 'true';
-        button.classList.add('rovalra-explorer-locked');
-        const lockedLabel = ts('createRoblox.explorer.noAccess');
-        button.title = lockedLabel;
-        button.setAttribute('aria-label', lockedLabel);
-    });
-
-    return button;
-}
-
 function addGameButton(host, prepend = true) {
     const placeId = getPlaceIdFromUrl();
     const pageKey = `game:${placeId || ''}`;
     if (!placeId || !host?.isConnected) return;
 
-    const existing = document.querySelector('.rovalra-explorer-game-btn');
-    if (existing) {
-        if (host.dataset.rovalraExplorerPageKey === pageKey) return;
-        existing.remove();
+    if (host.dataset.rovalraExplorerPageKey !== pageKey) {
+        document.querySelector('.rovalra-explorer-game-btn')?.remove();
+        host.dataset.rovalraExplorerPageKey = pageKey;
+    } else if (document.querySelector('.rovalra-explorer-game-btn')) {
+        return;
     }
-    host.dataset.rovalraExplorerPageKey = pageKey;
 
-    const button = createGameExplorerButton(placeId);
-    if (prepend && host.firstElementChild) {
-        host.insertBefore(button, host.firstElementChild);
-    } else {
-        host.appendChild(button);
-    }
-    console.log('%cRoValra Explorer: button added (game)', 'color:#FF4500');
+    // Only your own games (or group games you can access) get the button:
+    // assetdelivery only hands the place file to sessions that can download
+    // it, so everyone else's games stay clean.
+    canAccessAsset(parseInt(placeId, 10)).then((ok) => {
+        if (
+            !ok ||
+            host.dataset.rovalraExplorerPageKey !== pageKey ||
+            document.querySelector('.rovalra-explorer-game-btn')
+        )
+            return;
+
+        const assets = getAssets();
+
+        const button = document.createElement('button');
+        button.id = 'rovalra-explorer-btn';
+        button.type = 'button';
+        button.className =
+            'rbx-menu-item btn-generic-more-sm rovalra-explorer-game-btn';
+        button.setAttribute('aria-label', ts('createRoblox.explorer.button'));
+        addTooltip(button, ts('createRoblox.explorer.button'));
+
+        const icon = document.createElement('span');
+        icon.className = 'rovalra-explorer-game-icon';
+        applyMaskIcon(icon, assets.explorerTreeIcon);
+
+        button.appendChild(icon);
+
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const title = document.querySelector('h1.game-name');
+            const name =
+                title?.getAttribute('title') || title?.textContent?.trim();
+            openExplorer(placeId, name);
+        });
+
+        if (prepend && host.firstElementChild) {
+            host.insertBefore(button, host.firstElementChild);
+        } else {
+            host.appendChild(button);
+        }
+        console.log('%cRoValra Explorer: button added (game)', 'color:#FF4500');
+    });
 }
 
 export async function init() {

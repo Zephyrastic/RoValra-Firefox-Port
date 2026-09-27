@@ -587,6 +587,7 @@ export async function callRobloxApi(options) {
                             headers: Object.fromEntries(
                                 normalizedHeaders.entries(),
                             ),
+                            credentials: options.credentials,
                             noCache,
                             responseType,
                         },

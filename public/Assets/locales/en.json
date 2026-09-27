@@ -1615,9 +1615,7 @@
             "previewGui": "Preview GUI",
             "togglePreviewVisibility": "Toggle visibility in preview",
             "noMatchingInstances": "No matching instances found",
-            "loadError": "Failed to load.",
-            "noAccess": "Explorer: no access to this place",
-            "noAccessDetails": "Roblox didn't give this browser session access to the place file, so the Explorer can't load it. You can only explore places you own or have download permission for. Open one of your own experiences to use the Explorer."
+            "loadError": "Failed to load."
         }
     },
     "priceFloor": {

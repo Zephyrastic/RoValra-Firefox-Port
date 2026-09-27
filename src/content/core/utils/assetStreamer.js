@@ -238,6 +238,11 @@ async function resolveAssetLocation(assetId, format) {
         method: 'GET',
         useBackground: true,
         headers,
+        // Place files are only downloadable by their owners (or group
+        // members with access). Without the session cookies assetdelivery
+        // sees an anonymous user and denies everything, so the Explorer
+        // button would never appear even on your own games.
+        credentials: 'include',
         sanitize: false,
     });
     if (!response.ok) return null;
