@@ -4356,55 +4356,79 @@ function addBundleButton(rightToolbar) {
     console.log('%cRoValra Explorer: button added (bundle)', 'color:#FF4500');
 }
 
-function addGameButton(contextMenu) {
+function openExplorerLockedNotice() {
+    const body = document.createElement('div');
+    body.className = 'rovalra-explorer-locked-notice';
+    body.textContent = ts('createRoblox.explorer.noAccessDetails');
+    createOverlay({
+        title: ts('createRoblox.explorer.title'),
+        bodyContent: body,
+        maxWidth: '440px',
+        showLogo: true,
+    });
+}
+
+function createGameExplorerButton(placeId) {
+    const button = document.createElement('button');
+    button.id = 'rovalra-explorer-btn';
+    button.type = 'button';
+    button.className =
+        'rbx-menu-item btn-generic-more-sm rovalra-explorer-game-btn';
+    button.setAttribute('aria-label', ts('createRoblox.explorer.button'));
+    button.title = ts('createRoblox.explorer.button');
+    addTooltip(button, ts('createRoblox.explorer.button'));
+
+    const icon = document.createElement('span');
+    icon.className = 'rovalra-explorer-game-icon';
+    applyMaskIcon(icon, getAssets().explorerTreeIcon);
+    button.appendChild(icon);
+
+    button.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (button.dataset.rovalraExplorerLocked === 'true') {
+            openExplorerLockedNotice();
+            return;
+        }
+        const title = document.querySelector('h1.game-name');
+        const name =
+            title?.getAttribute('title') || title?.textContent?.trim();
+        openExplorer(placeId, name);
+    });
+
+    // Mount first, verify access in the background. Places this session can't
+    // download (not the owner / no permission) keep a visible button that
+    // explains why instead of silently never appearing.
+    canAccessAsset(parseInt(placeId, 10)).then((ok) => {
+        if (ok || !button.isConnected) return;
+        button.dataset.rovalraExplorerLocked = 'true';
+        button.classList.add('rovalra-explorer-locked');
+        const lockedLabel = ts('createRoblox.explorer.noAccess');
+        button.title = lockedLabel;
+        button.setAttribute('aria-label', lockedLabel);
+    });
+
+    return button;
+}
+
+function addGameButton(host, prepend = true) {
     const placeId = getPlaceIdFromUrl();
     const pageKey = `game:${placeId || ''}`;
-    if (!placeId) return;
+    if (!placeId || !host?.isConnected) return;
 
-    if (contextMenu.dataset.rovalraExplorerPageKey !== pageKey) {
-        contextMenu
-            .querySelector('.rovalra-explorer-game-btn')
-            ?.remove();
-        contextMenu.dataset.rovalraExplorerPageKey = pageKey;
-    } else if (contextMenu.querySelector('.rovalra-explorer-game-btn')) {
-        return;
+    const existing = document.querySelector('.rovalra-explorer-game-btn');
+    if (existing) {
+        if (host.dataset.rovalraExplorerPageKey === pageKey) return;
+        existing.remove();
     }
+    host.dataset.rovalraExplorerPageKey = pageKey;
 
-    canAccessAsset(parseInt(placeId, 10)).then((ok) => {
-        if (
-            !ok ||
-            contextMenu.dataset.rovalraExplorerPageKey !== pageKey ||
-            contextMenu.querySelector('.rovalra-explorer-game-btn')
-        )
-            return;
-
-        const assets = getAssets();
-
-        const button = document.createElement('button');
-        button.id = 'rovalra-explorer-btn';
-        button.type = 'button';
-        button.className =
-            'rbx-menu-item btn-generic-more-sm rovalra-explorer-game-btn';
-        button.setAttribute('aria-label', ts('createRoblox.explorer.button'));
-        addTooltip(button, ts('createRoblox.explorer.button'));
-
-        const icon = document.createElement('span');
-        icon.className = 'rovalra-explorer-game-icon';
-        applyMaskIcon(icon, assets.explorerTreeIcon);
-
-        button.appendChild(icon);
-
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            const title = document.querySelector('h1.game-name');
-            const name =
-                title?.getAttribute('title') || title?.textContent?.trim();
-            openExplorer(placeId, name);
-        });
-
-        contextMenu.insertBefore(button, contextMenu.firstElementChild);
-        console.log('%cRoValra Explorer: button added (game)', 'color:#FF4500');
-    });
+    const button = createGameExplorerButton(placeId);
+    if (prepend && host.firstElementChild) {
+        host.insertBefore(button, host.firstElementChild);
+    } else {
+        host.appendChild(button);
+    }
+    console.log('%cRoValra Explorer: button added (game)', 'color:#FF4500');
 }
 
 export async function init() {
@@ -4427,6 +4451,15 @@ export async function init() {
         );
     }
     if (onGame) {
-        observeElement('#game-context-menu', (el) => addGameButton(el));
+        observeElement('#game-context-menu', (el) => addGameButton(el, true));
+        // Fallback mount if Roblox renames or removes the context menu
+        // container: dock the button at the end of the action buttons row.
+        // Skipped while the primary container exists so the two observers
+        // never fight over the button; if the context menu renders later,
+        // the primary observer moves the button there.
+        observeElement('#game-detail-page .game-buttons-container', (el) => {
+            if (document.querySelector('#game-context-menu')) return;
+            addGameButton(el, false);
+        });
     }
 }
