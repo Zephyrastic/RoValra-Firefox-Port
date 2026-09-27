@@ -12,6 +12,7 @@ import {
 import { getPlacesDetails } from '../../core/apis/games.js';
 import { createOverlay } from '../../core/ui/overlay.js';
 import { createButton } from '../../core/ui/buttons.js';
+import { Icon } from '../../core/ui/buildericon.js';
 import { ts } from '../../core/locale/i18n.js';
 
 const PANEL_ITEM_ATTR = 'data-rovalra-dev-panel-item';
@@ -66,7 +67,14 @@ function createPanelIcon(name, size = 18) {
 }
 
 function createDevIcon() {
-    return createPanelIcon('terminal', 20);
+    // Same icon element the API Docs / Transactions sidebar links use, so the
+    // glyph inherits Roblox's own sizing, baseline and spacing.
+    return Icon({
+        material: true,
+        size: 'medium',
+        icon: 'code',
+        filled: true,
+    });
 }
 
 function stripItemState(item) {
@@ -448,6 +456,12 @@ const NAV_ITEM_SELECTOR = [
     '.roseal-left-nav-item',
 ].join(', ');
 
+// The exact class set the API Docs and Transactions sidebar items apply, so
+// the Dev Panel entry gets identical padding, gap, radius and text treatment
+// as every other Roblox nav item.
+const NAV_LINK_CLASSES =
+    'content-emphasis text-title-large flex items-center gap-small padding-left-xsmall padding-right-xxsmall radius-medium relative clip group/interactable focus-visible:outline-focus disabled:outline-none';
+
 function getSidebarContainer(anchor) {
     return anchor.closest('ul, ol, nav, [role="navigation"]');
 }
@@ -479,43 +493,35 @@ function cleanupPanelItems(region) {
     return validItems[0] || null;
 }
 
-function prepareLinkIcon(link) {
-    const originalIcon = link.querySelector(
-        'svg, icon, [class*="icon"], [class*="Icon"]',
+function findIconHost(link) {
+    const directChildren = [...link.children];
+    return (
+        directChildren.find((child) =>
+            child.querySelector('svg, icon, [class*="icon"], [class*="Icon"]'),
+        ) ||
+        directChildren.find((child) =>
+            child.className?.toString().toLowerCase().includes('icon'),
+        ) ||
+        directChildren.find((child) => !child.textContent.trim())
     );
-    let originalHost = originalIcon;
-    while (
-        originalHost?.parentElement &&
-        originalHost.parentElement !== link
-    ) {
-        originalHost = originalHost.parentElement;
+}
+
+function setLinkLabel(link, label) {
+    const labelTarget = [...link.querySelectorAll('*')]
+        .filter(
+            (element) =>
+                element.children.length === 0 && element.textContent.trim(),
+        )
+        .at(-1);
+
+    if (labelTarget) {
+        labelTarget.textContent = label;
+        return;
     }
 
-    const canReuseHost =
-        originalHost?.parentElement === link &&
-        originalHost.tagName !== 'SVG' &&
-        originalHost.tagName !== 'ICON' &&
-        !originalHost.textContent.trim();
-
-    const iconHost = canReuseHost
-        ? originalHost
-        : document.createElement('span');
-    iconHost.classList.add('rovalra-dev-panel-icon');
-    iconHost.replaceChildren(createDevIcon());
-
-    if (!canReuseHost) {
-        if (originalHost?.parentElement === link) {
-            originalHost.replaceWith(iconHost);
-        } else {
-            link.prepend(iconHost);
-        }
-    }
-
-    [...link.children].forEach((child) => {
-        if (child !== iconHost && !child.textContent.trim()) child.remove();
-    });
-
-    return iconHost;
+    const span = document.createElement('span');
+    span.textContent = label;
+    link.appendChild(span);
 }
 
 function findGiftCardsLink(nav) {
@@ -568,21 +574,16 @@ function appendPanelItem(nav) {
     const link = item.querySelector('a[href]');
     if (!link) return;
     stripItemState(item);
-    prepareLinkIcon(link);
 
-    const labelTarget = [...link.querySelectorAll('*')]
-        .filter(
-            (element) =>
-                element.children.length === 0 && element.textContent.trim(),
-        )
-        .at(-1);
-    if (labelTarget) {
-        labelTarget.textContent = t('sidebarLabel');
+    link.className = NAV_LINK_CLASSES;
+
+    const iconHost = findIconHost(link);
+    if (iconHost) {
+        iconHost.replaceChildren(createDevIcon());
     } else {
-        const span = document.createElement('span');
-        span.textContent = t('sidebarLabel');
-        link.appendChild(span);
+        link.prepend(createDevIcon());
     }
+    setLinkLabel(link, t('sidebarLabel'));
 
     link.setAttribute('href', '#rovalra-dev-panel');
     link.setAttribute(PANEL_LINK_ATTR, 'true');
