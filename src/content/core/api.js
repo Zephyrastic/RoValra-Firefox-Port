@@ -13,14 +13,29 @@ import {
 import { sanitizeProxiedHeaders } from '../../shared/proxyHeaders.js';
 
 import { updateUserLocationIfChanged } from './utils/location.js';
+import {
+    getRateLimitKey,
+    waitForRateLimitCooldown,
+    recordRateLimitCooldown,
+} from './net/rateLimit.js';
+import {
+    normalizeGameJoinEndpoint,
+    isGameJoinTimeoutEnabled,
+    createGameJoinFullResponse,
+    normalizeGameJoinResponse,
+} from './net/gamejoin.js';
+import {
+    checkSimulatedDowntime,
+    checkSimulatedLatency,
+    checkSimulatedJoinError,
+    checkSimulatedJoinHttpError,
+} from './net/simulations.js';
 const activeRequests = new Map();
 const responseCache = new Map();
 const USER_BADGES_CACHE_TTL_MS = 5 * 60 * 1000;
 let gameJoinErrorCount = 0;
 let lastGameJoinRequestTime = 0;
 const GAMEJOIN_TIMEOUT_MS = 2000;
-const rateLimitCooldowns = new Map();
-const RETRY_AFTER_BUFFER_MS = 1000;
 const TEMPORARILY_LIMITED_MESSAGE =
     'Your account has been temporarily limited for violating terms of service.';
 
@@ -30,66 +45,6 @@ let cachedRovalraUserAgent = null;
 const hbaClient = new HBAClient({
     onSite: true,
 });
-
-function getRetryAfterDelay(response) {
-    const retryAfter = response.headers.get('retry-after');
-    if (retryAfter) {
-        const seconds = Number(retryAfter);
-        if (Number.isFinite(seconds)) {
-            return Math.max(0, seconds * 1000) + RETRY_AFTER_BUFFER_MS;
-        }
-
-        const retryAt = Date.parse(retryAfter);
-        if (Number.isFinite(retryAt)) {
-            return Math.max(0, retryAt - Date.now()) + RETRY_AFTER_BUFFER_MS;
-        }
-    }
-
-    return 0;
-}
-
-function getRateLimitKey(url) {
-    try {
-        return new URL(url).origin;
-    } catch {
-        return url;
-    }
-}
-
-async function waitForRateLimitCooldown(key, signal) {
-    const cooldownUntil = rateLimitCooldowns.get(key) || 0;
-    const delay = cooldownUntil - Date.now();
-    if (delay <= 0) {
-        rateLimitCooldowns.delete(key);
-        return;
-    }
-
-    await new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(resolve, delay);
-        if (!signal) return;
-
-        const onAbort = () => {
-            clearTimeout(timeoutId);
-            reject(new DOMException('The operation was aborted.', 'AbortError'));
-        };
-        if (signal.aborted) {
-            onAbort();
-            return;
-        }
-        signal.addEventListener('abort', onAbort, { once: true });
-    });
-}
-
-function recordRateLimitCooldown(key, response) {
-    const delay = getRetryAfterDelay(response);
-    if (delay <= 0) return;
-
-    const cooldownUntil = Date.now() + delay;
-    rateLimitCooldowns.set(
-        key,
-        Math.max(rateLimitCooldowns.get(key) || 0, cooldownUntil),
-    );
-}
 
 function getRovalraUserAgent() {
     if (cachedRovalraUserAgent) return cachedRovalraUserAgent;
@@ -136,167 +91,6 @@ function getResponseCacheTtl(options) {
     }
 
     return 0;
-}
-
-function normalizeGameJoinEndpoint(endpoint) {
-    if (typeof endpoint !== 'string') return endpoint;
-    return endpoint.replace(/^\/v[12]\//, '/v1/');
-}
-
-function isGameJoinTimeoutEnabled(endpoint) {
-    if (typeof endpoint !== 'string') return true;
-    return endpoint.split('?')[0].replace(/^\/v[12]\//, '/') !== '/join-game';
-}
-
-function createGameJoinFullResponse() {
-    return new Response(
-        JSON.stringify({
-            status: 22,
-            message: 'Server full',
-            rovalraTimedOut: true,
-        }),
-        {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-        },
-    );
-}
-
-function parseServerSentEvents(text) {
-    const events = [];
-    const blocks = String(text || '').split(/\r?\n\r?\n/);
-
-    for (const block of blocks) {
-        if (!block.trim()) continue;
-
-        const event = { event: 'message', data: '' };
-        const dataLines = [];
-
-        for (const rawLine of block.split(/\r?\n/)) {
-            if (!rawLine || rawLine.startsWith(':')) continue;
-
-            const separatorIndex = rawLine.indexOf(':');
-            let field = rawLine;
-            let value = '';
-
-            if (separatorIndex !== -1) {
-                field = rawLine.slice(0, separatorIndex);
-                value = rawLine.slice(separatorIndex + 1);
-                if (value.charCodeAt(0) === 32) value = value.slice(1);
-            }
-
-            if (field === 'event') event.event = value;
-            else if (field === 'id') event.id = value;
-            else if (field === 'retry') event.retry = value;
-            else if (field === 'data') dataLines.push(value);
-        }
-
-        event.data = dataLines.join('\n');
-        events.push(event);
-    }
-
-    return events;
-}
-
-async function normalizeGameJoinResponse(response) {
-    const contentType = (
-        response.headers.get('Content-Type') || ''
-    ).toLowerCase();
-    if (!contentType.includes('text/event-stream')) return response;
-
-    const text = await response.text();
-    const events = parseServerSentEvents(text);
-    const readyEvent =
-        events.find((event) => event.event === 'ResponseReady') ||
-        events.find((event) => event.data?.trim());
-
-    if (!readyEvent?.data) {
-        return new Response(JSON.stringify({ status: 0 }), {
-            status: response.status,
-            statusText: response.statusText,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
-
-    try {
-        JSON.parse(readyEvent.data);
-    } catch (e) {
-        return new Response(JSON.stringify({ status: 0 }), {
-            status: response.status,
-            statusText: response.statusText,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
-
-    return new Response(readyEvent.data, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: { 'Content-Type': 'application/json' },
-    });
-}
-
-function checkSimulatedDowntime() {
-    return new Promise((resolve) => {
-        if (
-            typeof chrome === 'undefined' ||
-            !chrome.storage ||
-            !chrome.storage.local
-        ) {
-            resolve(false);
-            return;
-        }
-        chrome.storage.local.get(['simulateRoValraServerErrors'], (result) => {
-            resolve(!!result.simulateRoValraServerErrors);
-        });
-    });
-}
-
-function checkSimulatedLatency() {
-    return new Promise((resolve) => {
-        if (
-            typeof chrome === 'undefined' ||
-            !chrome.storage ||
-            !chrome.storage.local
-        ) {
-            resolve(false);
-            return;
-        }
-        chrome.storage.local.get(['simulateRoValraServerLatency'], (result) => {
-            resolve(!!result.simulateRoValraServerLatency);
-        });
-    });
-}
-
-function checkSimulatedJoinError() {
-    return new Promise((resolve) => {
-        if (
-            typeof chrome === 'undefined' ||
-            !chrome.storage ||
-            !chrome.storage.local
-        ) {
-            resolve(false);
-            return;
-        }
-        chrome.storage.local.get(['simulateRobloxJoinErrors'], (result) => {
-            resolve(!!result.simulateRobloxJoinErrors);
-        });
-    });
-}
-
-function checkSimulatedJoinHttpError() {
-    return new Promise((resolve) => {
-        if (
-            typeof chrome === 'undefined' ||
-            !chrome.storage ||
-            !chrome.storage.local
-        ) {
-            resolve(false);
-            return;
-        }
-        chrome.storage.local.get(['simulateRobloxJoinHttpErrors'], (result) => {
-            resolve(!!result.simulateRobloxJoinHttpErrors);
-        });
-    });
 }
 
 export function resetGameJoinErrorCount() {

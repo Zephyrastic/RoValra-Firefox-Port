@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "__MSG_extensionName__",
-    "version": "2.6.44",
+    "version": "2.6.45",
     "description": "__MSG_extensionDescription__",
     "default_locale": "en",
     "content_scripts": [
@@ -30,8 +30,6 @@
     "host_permissions": [
         "https://games.roblox.com/*",
         "*://*.roblox.com/*",
-        "https://gamejoin.roblox.com/v1/join-game-instance",
-        "https://users.roblox.com/*",
         "https://rovalra.com/*",
         "https://*.rovalra.com/*",
         "https://setup.rbxcdn.com/*",

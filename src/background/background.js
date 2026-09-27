@@ -2,7 +2,17 @@ import { SETTINGS_CONFIG } from '../content/core/settings/settingConfig.js';
 import init from './settingsCompat.ts';
 import { updateGameBookmarks } from './gameBookmarks.js';
 import { initializeTelemetryBlocker } from './telemetryBlocker.js';
-import { buildRovalraUserAgent } from '../shared/userAgent.js';
+import { updateUserAgentRule } from './userAgentRules.js';
+import { fetchRovalraViaBackground } from './rovalraProxy.js';
+import {
+    loadRovalraImage,
+    buildInlinedGoogleFontCss,
+} from './assetProxy.js';
+import {
+    callRobloxApiBackground,
+    sleep,
+    getRateLimitDelay,
+} from './robloxApi.js';
 import { collectProxyResponseHeaders } from '../shared/proxyHeaders.js';
 import { uint8ToBase64 } from '../shared/base64.js';
 
@@ -16,7 +26,6 @@ const state = {
     currentUserId: null,
     latestPresence: null,
     pollingInterval: null,
-    csrfTokenCache: null,
     rotatorInterval: null,
     rotatorIndex: 0,
     bannedUserRedirects: new Map(),
@@ -29,7 +38,6 @@ const state = {
     badgeFullScanInterval: null,
     avatarInventoryInterval: null,
 };
-const rateLimitCooldowns = new Map();
 
 // --- Session Storage Configuration ---
 if (chrome.storage.session && chrome.storage.session.setAccessLevel) {
@@ -115,65 +123,6 @@ function initializeSettings(reason) {
                 }
             });
         }
-    });
-}
-
-// --- User Agent Spoofing ---
-
-function updateUserAgentRule() {
-    const originalUA = self.navigator.userAgent;
-    const manifest = chrome.runtime.getManifest();
-    // Ports must keep the unofficial suffix. It tells Roblox that upstream
-    // does not control requests coming from this port.
-    const rovalraSuffix = buildRovalraUserAgent({
-        userAgent: originalUA,
-        version: manifest.version,
-        updateUrlPresent: 'update_url' in manifest,
-    });
-
-    const rules = [
-        {
-            id: 999,
-            priority: 5,
-            action: {
-                type: 'modifyHeaders',
-                requestHeaders: [
-                    {
-                        header: 'User-Agent',
-                        operation: 'set',
-                        value: `${originalUA} ${rovalraSuffix}`,
-                    },
-                ],
-            },
-            condition: {
-                regexFilter: '.*_RoValraRequest=',
-                resourceTypes: ['xmlhttprequest'],
-            },
-        },
-        {
-            id: 1000,
-            priority: 10,
-            action: {
-                type: 'modifyHeaders',
-                requestHeaders: [
-                    {
-                        header: 'User-Agent',
-                        operation: 'set',
-                        value: `Roblox/WinInet ${rovalraSuffix}`,
-                    },
-                ],
-            },
-            condition: {
-                regexFilter:
-                    '^https://gamejoin\\.roblox\\.com/.*_RoValraRequest=|^https://apis\\.roblox\\.com/player-hydration-service/v1/players/signed',
-                resourceTypes: ['xmlhttprequest'],
-            },
-        },
-    ];
-
-    chrome.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: [999, 1000],
-        addRules: rules,
     });
 }
 
@@ -389,344 +338,6 @@ async function getUniverseIdFromPlaceId(placeId) {
         console.error('RoValra: Error fetching universe ID from place ID', e);
         return null;
     }
-}
-
-async function callRobloxApiBackground(options) {
-    const {
-        subdomain = 'api',
-        endpoint,
-        method = 'GET',
-        body = null,
-        headers = {},
-        fullUrl = null,
-        credentials,
-    } = options;
-
-    let url;
-    if (fullUrl) {
-        const parsedUrl = new URL(fullUrl);
-        if (parsedUrl.hostname !== 'setup.rbxcdn.com') {
-            throw new Error('Unsupported fullUrl host for background fetch');
-        }
-        url = parsedUrl.toString();
-    } else {
-        url = `https://${subdomain}.roblox.com${endpoint}`;
-    }
-
-    const separator = url.includes('?') ? '&' : '?';
-
-    if (!endpoint?.includes('/player-hydration-service/v1/players/signed')) {
-        url += `${separator}_RoValraRequest=`;
-    }
-
-    const fetchOptions = { method, headers: { ...headers } };
-
-    // Extension-origin fetches omit Roblox cookies by default, which makes
-    // authenticated endpoints (e.g. assetdelivery place downloads used by the
-    // Explorer access check) see an anonymous user. Callers that need the
-    // logged-in session opt in explicitly; everything else keeps the old
-    // cookie-less behavior.
-    if (credentials) {
-        fetchOptions.credentials = credentials;
-    }
-
-    if (body) {
-        if (typeof body === 'object') {
-            fetchOptions.headers['Content-Type'] = 'application/json';
-            fetchOptions.body = JSON.stringify(body);
-        } else {
-            fetchOptions.body = body;
-        }
-    }
-
-    if (method !== 'GET' && method !== 'HEAD' && state.csrfTokenCache) {
-        fetchOptions.headers['X-CSRF-TOKEN'] = state.csrfTokenCache;
-    }
-
-    const rateLimitKey = new URL(url).origin;
-    const cooldownUntil = rateLimitCooldowns.get(rateLimitKey) || 0;
-    if (cooldownUntil > Date.now()) {
-        await sleep(cooldownUntil - Date.now());
-    } else {
-        rateLimitCooldowns.delete(rateLimitKey);
-    }
-
-    let response = await fetch(url, fetchOptions); //Verified
-
-    if (response.status === 429) {
-        const cooldown = getRateLimitDelay(response);
-        if (cooldown > 0) {
-            rateLimitCooldowns.set(
-                rateLimitKey,
-                Math.max(
-                    rateLimitCooldowns.get(rateLimitKey) || 0,
-                    Date.now() + cooldown,
-                ),
-            );
-        }
-    }
-
-    if (response.status === 403 && method !== 'GET' && method !== 'HEAD') {
-        const newCsrf = response.headers.get('x-csrf-token');
-        if (newCsrf) {
-            state.csrfTokenCache = newCsrf;
-            fetchOptions.headers['X-CSRF-TOKEN'] = newCsrf;
-            response = await fetch(url, fetchOptions); //Verified
-        }
-    }
-
-    return response;
-}
-
-function parseRawResponseHeaders(rawHeaders) {
-    const headers = new Headers();
-    String(rawHeaders || '')
-        .trim()
-        .split(/[\r\n]+/)
-        .forEach((line) => {
-            const separatorIndex = line.indexOf(':');
-            if (separatorIndex <= 0) return;
-            try {
-                headers.append(
-                    line.slice(0, separatorIndex).trim(),
-                    line.slice(separatorIndex + 1).trim(),
-                );
-            } catch (e) {}
-        });
-    return headers;
-}
-
-// Firefox can refuse a cross-origin `fetch()` from the background page with a
-// bare "NetworkError when attempting to fetch resource." (CORS/preflight
-// handling, proxy setups, or content blockers all land there). XHR takes the
-// privileged extension path, so it is kept as a fallback transport and shaped
-// like a fetch Response for the message handler below.
-function fetchRovalraTextViaXhr(url, { method = 'GET', headers = {}, body = null }) {
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open(method, url, true);
-        Object.entries(headers || {}).forEach(([key, value]) => {
-            try {
-                xhr.setRequestHeader(key, value);
-            } catch (e) {}
-        });
-        xhr.onload = () =>
-            resolve({
-                ok: xhr.status >= 200 && xhr.status < 300,
-                status: xhr.status,
-                statusText: xhr.statusText,
-                headers: parseRawResponseHeaders(xhr.getAllResponseHeaders()),
-                text: () => Promise.resolve(xhr.responseText),
-            });
-        xhr.onerror = () =>
-            reject(
-                new TypeError(
-                    'NetworkError when attempting to fetch resource (xhr).',
-                ),
-            );
-        xhr.onabort = () =>
-            reject(new DOMException('The operation was aborted.', 'AbortError'));
-
-        try {
-            xhr.send(body || null);
-        } catch (error) {
-            reject(error);
-        }
-    });
-}
-
-async function fetchRovalraViaBackground(options = {}) {
-    const {
-        url,
-        method = 'GET',
-        headers = {},
-        body = null,
-        cache = 'default',
-    } = options;
-
-    const parsedUrl = new URL(url);
-    const isRovalraHost =
-        parsedUrl.protocol === 'https:' &&
-        (parsedUrl.hostname === 'rovalra.com' ||
-            parsedUrl.hostname.endsWith('.rovalra.com'));
-    if (!isRovalraHost) {
-        throw new Error('Unsupported rovalraFetch host');
-    }
-
-    const target = parsedUrl.toString();
-    const fetchOptions = {
-        method,
-        headers: { ...headers },
-        cache,
-    };
-    if (body && method !== 'GET' && method !== 'HEAD') {
-        fetchOptions.body = body;
-    }
-
-    // Attempt 2 drops every non-safelisted request header, which turns the
-    // call into a simple request that can never fail on a CORS preflight.
-    const simpleHeaders = {};
-    Object.entries(headers || {}).forEach(([key, value]) => {
-        if (['accept', 'content-type'].includes(key.toLowerCase())) {
-            simpleHeaders[key] = value;
-        }
-    });
-    if (!Object.keys(simpleHeaders).length) {
-        simpleHeaders.Accept = 'application/json';
-    }
-
-    const attempts = [
-        { label: 'fetch', run: () => fetch(target, fetchOptions) },
-        {
-            label: 'fetch-simple',
-            run: () =>
-                fetch(target, {
-                    ...fetchOptions,
-                    headers: simpleHeaders,
-                    cache: 'no-store',
-                }),
-        },
-        {
-            label: 'xhr',
-            run: () =>
-                fetchRovalraTextViaXhr(target, { method, headers, body }),
-        },
-    ];
-
-    const failures = [];
-    for (const attempt of attempts) {
-        try {
-            const response = await attempt.run();
-            if (response) return response;
-            failures.push(`${attempt.label}: empty response`);
-        } catch (error) {
-            const reason = error?.message || String(error);
-            failures.push(`${attempt.label}: ${reason}`);
-            console.warn(
-                `RoValra: rovalraFetch via ${attempt.label} failed:`,
-                error,
-            );
-        }
-    }
-
-    // Surface every transport that failed so the content script (and the user)
-    // can tell exactly which paths were blocked.
-    throw new TypeError(failures.join(' | '));
-}
-
-// --- RoValra-hosted static assets (images / Google Fonts CSS) ---
-// Roblox's page CSP (img-src) does not allow rovalra.com, and some Firefox
-// environments never fetch fonts.googleapis.com stylesheets, so these
-// requests are proxied through the background script (not subject to page
-// CSP) and returned as self-contained data: URIs. Both endpoints respond
-// with access-control-allow-origin: * to extension origins, so no extra
-// host permissions are required.
-
-const rovalraImageCache = new Map();
-const googleFontCssCache = new Map();
-
-async function loadRovalraImage(url) {
-    const parsedUrl = new URL(url);
-    const isRovalraHost =
-        parsedUrl.protocol === 'https:' &&
-        (parsedUrl.hostname === 'rovalra.com' ||
-            parsedUrl.hostname.endsWith('.rovalra.com'));
-    if (!isRovalraHost) {
-        throw new Error('Unsupported rovalraImage host');
-    }
-
-    if (rovalraImageCache.has(url)) {
-        return rovalraImageCache.get(url);
-    }
-
-    const promise = (async () => {
-        const response = await fetch(parsedUrl.toString(), {
-            cache: 'default',
-        });
-        if (!response.ok) {
-            throw new Error(
-                `rovalraImage request failed with ${response.status}`,
-            );
-        }
-        const contentType = (
-            response.headers.get('Content-Type') || 'application/octet-stream'
-        ).split(';')[0];
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        return `data:${contentType};base64,${uint8ToBase64(bytes)}`;
-    })();
-
-    rovalraImageCache.set(url, promise);
-    promise.catch(() => rovalraImageCache.delete(url));
-    return promise;
-}
-
-async function buildInlinedGoogleFontCss(url) {
-    const parsedUrl = new URL(url);
-    const isGoogleFontsHost =
-        parsedUrl.protocol === 'https:' &&
-        parsedUrl.hostname === 'fonts.googleapis.com';
-    if (!isGoogleFontsHost) {
-        throw new Error('Unsupported rovalraGoogleFontCss host');
-    }
-
-    if (googleFontCssCache.has(url)) {
-        return googleFontCssCache.get(url);
-    }
-
-    const promise = (async () => {
-        const cssResponse = await fetch(parsedUrl.toString(), {
-            cache: 'default',
-        });
-        if (!cssResponse.ok) {
-            throw new Error(
-                `Font CSS request failed with ${cssResponse.status}`,
-            );
-        }
-        let css = await cssResponse.text();
-
-        // Inline every fonts.gstatic.com binary referenced by the stylesheet
-        // so the page itself only ever loads data: URIs.
-        const fontUrlPattern =
-            /url\((['"]?)(https:\/\/fonts\.gstatic\.com\/[^)'"]+)\1\)/g;
-        const referenced = new Set();
-        let match;
-        while ((match = fontUrlPattern.exec(css)) !== null) {
-            referenced.add(match[2]);
-        }
-
-        const dataUris = new Map();
-        for (const fontUrl of referenced) {
-            const parsedFontUrl = new URL(fontUrl);
-            if (
-                parsedFontUrl.protocol !== 'https:' ||
-                parsedFontUrl.hostname !== 'fonts.gstatic.com'
-            ) {
-                continue;
-            }
-            const fontResponse = await fetch(parsedFontUrl.toString(), {
-                cache: 'default',
-            });
-            if (!fontResponse.ok) continue;
-            const fontBytes = new Uint8Array(await fontResponse.arrayBuffer());
-            const fontMime = (
-                fontResponse.headers.get('Content-Type') || 'font/woff2'
-            ).split(';')[0];
-            dataUris.set(
-                fontUrl,
-                `data:${fontMime};base64,${uint8ToBase64(fontBytes)}`,
-            );
-        }
-
-        css = css.replace(fontUrlPattern, (full, quote, fontUrl) => {
-            const dataUri = dataUris.get(fontUrl);
-            return dataUri ? `url(${dataUri})` : full;
-        });
-        return css;
-    })();
-
-    googleFontCssCache.set(url, promise);
-    promise.catch(() => googleFontCssCache.delete(url));
-    return promise;
 }
 
 async function wearOutfit(outfitData) {
@@ -1034,43 +645,6 @@ const AVATAR_INVENTORY_SCAN_TYPES = {
         latestKey: 'latestRecentlyAddedItems',
     },
 };
-
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getRateLimitDelay(response) {
-    const retryAfter = response.headers.get('retry-after');
-    if (retryAfter) {
-        const retryAfterSeconds = Number(retryAfter);
-        if (Number.isFinite(retryAfterSeconds)) {
-            return Math.max(0, retryAfterSeconds * 1000) + 1000;
-        }
-
-        const retryAt = Date.parse(retryAfter);
-        if (Number.isFinite(retryAt)) {
-            return Math.max(0, retryAt - Date.now()) + 1000;
-        }
-    }
-
-    const remaining = Number(response.headers.get('x-ratelimit-remaining'));
-    const resetValue = Number(response.headers.get('x-ratelimit-reset'));
-
-    if (
-        Number.isFinite(remaining) &&
-        remaining <= 1 &&
-        Number.isFinite(resetValue) &&
-        resetValue > 0
-    ) {
-        return (
-            (resetValue > 1e9
-                ? Math.max(0, resetValue * 1000 - Date.now())
-                : resetValue * 1000) + 1000
-        );
-    }
-
-    return 0;
-}
 
 async function fetchTransactionsPage(userId, cursor = null) {
     let endpoint = `/transaction-records/v1/users/${userId}/transactions?limit=100&transactionType=Purchase&itemPricingType=PaidAndLimited`;
@@ -2408,6 +1982,13 @@ chrome.permissions.onRemoved.addListener((permissions) => {
     });
 });
 
+// Extension message protocol (content -> background). Every `case` below has
+// at least one sender in src/content or public/; every `action:` sent from
+// content has a matching case here. Background -> content messages
+// (copyToClipboard, view-ids, presenceUpdate, permissionsUpdated) are handled
+// by listeners in their respective feature modules. The settings-compat
+// channel (settingsCompatGetRes/settingsCompatResultData) uses `type` and is
+// handled in settingsCompat.ts, not here.
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     switch (request.action) {
         case 'updateGameBookmarks':
@@ -2416,6 +1997,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 .catch((error) => sendResponse({ error: error.message }));
             return true;
         case 'fetchJson':
+            // Restricted to the GitHub API (the only sender is the What's
+            // New releases feed). Never fetch arbitrary caller-supplied
+            // URLs through the privileged background context.
+            if (
+                typeof request.url !== 'string' ||
+                !/^https:\/\/api\.github\.com\//.test(request.url)
+            ) {
+                sendResponse({ error: 'Unsupported fetchJson host.' });
+                return false;
+            }
             fetch(request.url)
                 .then((res) => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2609,10 +2200,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case 'getLatestPresence':
             sendResponse({ presence: state.latestPresence });
             return false;
-
-        case 'wearOutfit':
-            wearOutfit(request.outfitId).then(sendResponse);
-            return true;
 
         case 'getCustomFontFamily':
             getCustomFontFamily(request.assetId)
