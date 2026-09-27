@@ -54,6 +54,7 @@ export function headersToObject(headers) {
     } catch (error) {
         throw new TypeError(
             `Cannot serialize request headers (type: ${Object.prototype.toString.call(headers)}): ${error?.message || error}`,
+            { cause: error },
         );
     }
 }
