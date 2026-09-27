@@ -10,7 +10,10 @@ import {
     getExtensionRovalraUserAgent,
     isFirefoxUserAgent,
 } from '../../shared/userAgent.js';
-import { sanitizeProxiedHeaders } from '../../shared/proxyHeaders.js';
+import {
+    sanitizeProxiedHeaders,
+    headersToObject,
+} from '../../shared/proxyHeaders.js';
 
 import { updateUserLocationIfChanged } from './utils/location.js';
 import {
@@ -139,9 +142,7 @@ function sendRovalraFetchViaBackground(fullUrl, fetchOptions) {
                 options: {
                     url: fullUrl,
                     method: fetchOptions.method || 'GET',
-                    headers: Object.fromEntries(
-                        (fetchOptions.headers || new Headers()).entries(),
-                    ),
+                    headers: headersToObject(fetchOptions.headers),
                     body:
                         typeof fetchOptions.body === 'string'
                             ? fetchOptions.body
@@ -329,9 +330,7 @@ export async function callRobloxApi(options) {
                             fullUrl: customFullUrl,
                             method,
                             body,
-                            headers: Object.fromEntries(
-                                normalizedHeaders.entries(),
-                            ),
+                            headers: headersToObject(normalizedHeaders),
                             credentials: options.credentials,
                             noCache,
                             responseType,

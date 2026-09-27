@@ -33,6 +33,31 @@ export function sanitizeProxiedHeaders(headers) {
     return sanitized;
 }
 
+// Serializes request headers for transport over extension messaging
+// (structured clone cannot carry Headers instances). Accepts Headers
+// instances, entry arrays, and plain objects — and never throws the raw
+// `.entries() is not a function` TypeError that used to kill every RoValra
+// API feature at once when the input was not a Headers instance.
+export function headersToObject(headers) {
+    try {
+        if (!headers) return {};
+        if (typeof headers[Symbol.iterator] === 'function') {
+            return Object.fromEntries(headers);
+        }
+        if (typeof headers.entries === 'function') {
+            return Object.fromEntries(headers.entries());
+        }
+        if (typeof headers === 'object') {
+            return { ...headers };
+        }
+        return {};
+    } catch (error) {
+        throw new TypeError(
+            `Cannot serialize request headers (type: ${Object.prototype.toString.call(headers)}): ${error?.message || error}`,
+        );
+    }
+}
+
 // For fetch Headers instances (background side).
 export function collectProxyResponseHeaders(response) {
     const headers = {};
