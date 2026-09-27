@@ -2,6 +2,7 @@
 
 import { observeElement } from '../../../observer.js';
 import { callRobloxApiJson } from '../../../api.js';
+import { getPlaceIdFromUrl } from '../../../idExtractor.js';
 import { createStyledInput } from '../../../ui/catalog/input.js'; 
 import { createDropdown } from '../../../ui/dropdown.js';
 import { addTooltip } from '../../../ui/tooltip.js'; 
@@ -56,14 +57,6 @@ const STYLES = `
         font-weight: 600;
     }
 `;
-
-function getPlaceIdFromUrl() {
-    try {
-        const match = window.location.href.match(/\/games\/(\d+)/);
-        return match ? match[1] : null;
-    } catch { return null; }
-}
-
 
 async function fetchVersionCounts() {
     try {

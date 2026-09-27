@@ -118,3 +118,13 @@ export async function t(key, options) {
 export function ts(key, options) {
     return i18next.t(key, options);
 }
+
+/**
+ * Creates a translation function scoped to a locale subtree, replacing the
+ * per-file `const t = (key) => ts('prefix.' + key)` wrappers.
+ * @param {string} prefix The locale prefix, e.g. 'devPanel'.
+ * @returns {(key: string, options?: object) => string} Scoped translator.
+ */
+export function scopedTs(prefix) {
+    return (key, options) => ts(`${prefix}.${key}`, options);
+}

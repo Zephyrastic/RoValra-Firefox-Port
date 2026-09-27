@@ -12,6 +12,7 @@ import { createStyledInput } from '../../core/ui/catalog/input.js';
 import { unzipSync } from 'fflate';
 import { ts } from '../../core/locale/i18n.js';
 import { settings } from '../../core/settings/getSettings.js';
+import { uint8ToBase64 } from '../../../shared/base64.js';
 import { isDarkMode } from '../../core/theme.js';
 import { CLASS_ORDER } from '../../core/utils/vendor/classOrder.js';
 import { PROP_CATEGORY } from '../../core/utils/vendor/propGroups.js';
@@ -700,15 +701,6 @@ function cssFontStyle(style) {
 
 let cachedStudioFonts = null;
 let studioFontsFetchPromise = null;
-
-function uint8ToBase64(u8) {
-    let binary = '';
-    const chunk = 8192;
-    for (let i = 0; i < u8.length; i += chunk) {
-        binary += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
-    }
-    return btoa(binary);
-}
 
 function detectFontMimeType(bytes) {
     if (!(bytes instanceof Uint8Array) || bytes.length < 4)

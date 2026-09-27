@@ -1,6 +1,7 @@
 import { showReviewPopup } from '../../core/review/review.js';
 import { observeElement } from '../../core/observer.js';
 import { callRobloxApiJson } from '../../core/api.js';
+import { getGroupIdFromUrl } from '../../core/idExtractor.js';
 import { createRadioButton } from '../../core/ui/general/radio.js';
 import { createOverlay } from '../../core/ui/overlay.js';
 import {
@@ -1128,11 +1129,6 @@ async function addFeatureButtons(searchContainer) {
             btnCancel.onclick = () => overlayInstance.close();
         };
     }
-}
-
-function getGroupIdFromUrl() {
-    const match = window.location.href.match(/id=(\d+)/);
-    return match ? match[1] : null;
 }
 
 async function fetchMemberPageWithRetry(groupId, cursor, retries = 3) {

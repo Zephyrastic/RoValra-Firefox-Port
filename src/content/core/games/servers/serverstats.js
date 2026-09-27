@@ -1,6 +1,7 @@
 // Server stats like total servers and versions
 
 import { callRobloxApi } from '../../api.js';
+import { getPlaceIdFromUrl } from '../../idExtractor.js';
 import { addTooltip } from '../../ui/tooltip.js';
 import DOMPurify from 'dompurify';
 import { observeElement, startObserving } from '../../observer.js';
@@ -277,7 +278,7 @@ export async function initGlobalStatsBar() {
         return;
     }
 
-    const placeId = window.location.pathname.match(/\/games\/(\d+)\//)?.[1];
+    const placeId = getPlaceIdFromUrl();
     if (!placeId) {
         return;
     }

@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "__MSG_extensionName__",
-    "version": "2.6.43",
+    "version": "2.6.44",
     "description": "__MSG_extensionDescription__",
     "default_locale": "en",
     "content_scripts": [
@@ -33,7 +33,10 @@
         "https://gamejoin.roblox.com/v1/join-game-instance",
         "https://users.roblox.com/*",
         "https://rovalra.com/*",
-        "https://*.rovalra.com/*"
+        "https://*.rovalra.com/*",
+        "https://setup.rbxcdn.com/*",
+        "https://fonts.googleapis.com/*",
+        "https://fonts.gstatic.com/*"
     ],
     "background": {
         "service_worker": "background.js"

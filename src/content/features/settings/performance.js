@@ -1,11 +1,11 @@
-import { ts } from '../../core/locale/i18n.js';
+import { scopedTs } from '../../core/locale/i18n.js';
 import { createToggle } from '../../core/ui/general/toggle.js';
 import {
     PERFORMANCE_STORAGE_KEYS,
     getPerformanceState,
 } from '../sitewide/performanceMode.js';
 
-const ui = (key, options) => ts(`settings.ui.performance.${key}`, options);
+const ui = scopedTs('settings.ui.performance');
 
 function createOptionRow({ titleText, descriptionText, checked, onChange }) {
     const row = document.createElement('div');

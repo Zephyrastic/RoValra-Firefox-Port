@@ -2,6 +2,9 @@ import { SETTINGS_CONFIG } from '../content/core/settings/settingConfig.js';
 import init from './settingsCompat.ts';
 import { updateGameBookmarks } from './gameBookmarks.js';
 import { initializeTelemetryBlocker } from './telemetryBlocker.js';
+import { buildRovalraUserAgent } from '../shared/userAgent.js';
+import { collectProxyResponseHeaders } from '../shared/proxyHeaders.js';
+import { uint8ToBase64 } from '../shared/base64.js';
 
 initializeTelemetryBlocker();
 
@@ -119,35 +122,14 @@ function initializeSettings(reason) {
 
 function updateUserAgentRule() {
     const originalUA = self.navigator.userAgent;
-    let browser = 'Unknown';
-    let engine = 'Unknown';
-
-    if (originalUA.includes('Firefox/')) {
-        browser = 'Firefox';
-        engine = 'Gecko';
-    } else if (originalUA.includes('Edg/')) {
-        browser = 'Edge';
-        engine = 'Chromium';
-    } else if (originalUA.includes('OPR/') || originalUA.includes('Opera/')) {
-        browser = 'Opera';
-        engine = 'Chromium';
-    } else if (originalUA.includes('Chrome/')) {
-        browser = 'Chrome';
-        engine = 'Chromium';
-    } else if (originalUA.includes('Safari/')) {
-        browser = 'Safari';
-        engine = 'WebKit';
-    }
-
     const manifest = chrome.runtime.getManifest();
-    const version = manifest.version || 'Unknown';
-    const isDevelopment = !('update_url' in manifest);
-    const environment = isDevelopment ? 'Development' : 'Production';
-
-    let rovalraSuffix = `RoValraExtension(RoValra/${browser}/${engine}/${version}/${environment})`;
-    if (engine === 'Gecko' || engine === 'WebKit') {
-        rovalraSuffix += ' UnofficialRoValraVersion'; // If you are developing a port for either of these don't remove this. It tells Roblox that I don't control requests coming from your port.
-    }
+    // Ports must keep the unofficial suffix. It tells Roblox that upstream
+    // does not control requests coming from this port.
+    const rovalraSuffix = buildRovalraUserAgent({
+        userAgent: originalUA,
+        version: manifest.version,
+        updateUrlPresent: 'update_url' in manifest,
+    });
 
     const rules = [
         {
@@ -630,32 +612,6 @@ async function fetchRovalraViaBackground(options = {}) {
     // Surface every transport that failed so the content script (and the user)
     // can tell exactly which paths were blocked.
     throw new TypeError(failures.join(' | '));
-}
-
-// Bodies handed back to a content script travel as already-decoded text, so
-// the original transfer framing/encoding headers no longer describe them.
-// Forwarding them makes the rebuilt Response unreadable on some engines
-// (Firefox serves brotli/gzip for these responses), which surfaced as
-// "No servers found via the RoValra API" on the Firefox port.
-const PROXY_STRIPPED_RESPONSE_HEADERS = new Set([
-    'content-encoding',
-    'content-length',
-    'transfer-encoding',
-    'connection',
-    'keep-alive',
-    'upgrade',
-    'trailer',
-    'te',
-]);
-
-function collectProxyResponseHeaders(response) {
-    const headers = {};
-    response.headers.forEach((value, key) => {
-        if (!PROXY_STRIPPED_RESPONSE_HEADERS.has(key.toLowerCase())) {
-            headers[key] = value;
-        }
-    });
-    return headers;
 }
 
 // --- RoValra-hosted static assets (images / Google Fonts CSS) ---
@@ -2221,15 +2177,6 @@ async function runAvatarInventoryLoopForType(
 
 // --- Fetch Roblox Font Assets ---
 
-function uint8ToBase64(u8) {
-    let binary = '';
-    const chunk = 8192;
-    for (let i = 0; i < u8.length; i += chunk) {
-        binary += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
-    }
-    return btoa(binary);
-}
-
 const customFontCache = new Map();
 
 function getAssetIdFromValue(value) {
@@ -2534,17 +2481,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ success: true });
             return false;
 
-        case 'injectMainWorldScript':
-            if (sender.tab?.id) {
-                chrome.scripting.executeScript({
-                    target: { tabId: sender.tab.id },
-                    files: [request.path],
-                    world: 'MAIN',
-                });
-            }
-            sendResponse({ success: true });
-            return false;
-
         case 'checkPermission':
             chrome.permissions.contains(
                 { permissions: [].concat(request.permission) },
@@ -2669,9 +2605,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ placeId });
             return false;
         }
-
-        case 'presencePollResult':
-            return false;
 
         case 'getLatestPresence':
             sendResponse({ presence: state.latestPresence });

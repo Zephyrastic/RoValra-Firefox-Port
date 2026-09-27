@@ -2,6 +2,7 @@
 
 import { observeElement } from '../../../observer.js';
 import { callRobloxApiJson } from '../../../api.js';
+import { getPlaceIdFromUrl } from '../../../idExtractor.js';
 import { createDropdown } from '../../../ui/dropdown.js';
 import { addTooltip } from '../../../ui/tooltip.js';
 import { ts } from '../../../locale/i18n.js';
@@ -14,15 +15,6 @@ const LABELS = {
     newest: ts('serverFilters.newest'),
     oldest: ts('serverFilters.oldest'),
 };
-
-function getPlaceIdFromUrl() {
-    try {
-        const match = window.location.href.match(/\/games\/(\d+)/);
-        return match ? match[1] : null;
-    } catch {
-        return null;
-    }
-}
 
 async function fetchUptimeServers(value, cursor = null) {
     const placeId = getPlaceIdFromUrl();

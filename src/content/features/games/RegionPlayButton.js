@@ -1,4 +1,5 @@
 import { observeElement, observeResize } from '../../core/observer.js';
+import { getPlaceIdFromUrl } from '../../core/idExtractor.js';
 import { addTooltip } from '../../core/ui/tooltip.js';
 import { getRegionData } from '../../core/regions.js';
 import {
@@ -22,8 +23,7 @@ let isRegionsLoaded = false;
 const buttonResizeSubscriptions = new WeakMap();
 
 function getPlaceId() {
-    const match = window.location.href.match(/\/games\/(\d+)/);
-    return match ? match[1] : null;
+    return getPlaceIdFromUrl();
 }
 
 function getUniverseId() {

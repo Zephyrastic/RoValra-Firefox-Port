@@ -13,13 +13,13 @@ import { getPlacesDetails } from '../../core/apis/games.js';
 import { createOverlay } from '../../core/ui/overlay.js';
 import { createButton } from '../../core/ui/buttons.js';
 import { Icon } from '../../core/ui/buildericon.js';
-import { ts } from '../../core/locale/i18n.js';
+import { scopedTs } from '../../core/locale/i18n.js';
 
 const PANEL_ITEM_ATTR = 'data-rovalra-dev-panel-item';
 const PANEL_LINK_ATTR = 'data-rovalra-dev-panel-link';
 const COPY_FEEDBACK_MS = 1500;
 
-const t = (key) => ts(`devPanel.${key}`);
+const t = scopedTs('devPanel');
 
 const PANEL_ICON_PATHS = {
     terminal: ['M4 17l6-6-6-6', 'M12 19h8'],

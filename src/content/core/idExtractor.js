@@ -3,7 +3,11 @@ export function getPlaceIdFromUrl(url = window.location.href) {
     try {
         const urlObj = new URL(url, window.location.origin);
 
-        const queryPlaceId = urlObj.searchParams.get('PlaceId');
+        const queryPlaceId =
+            urlObj.searchParams.get('PlaceId') ||
+            urlObj.searchParams.get('placeId') ||
+            urlObj.searchParams.get('place_id') ||
+            urlObj.searchParams.get('placeid');
         if (queryPlaceId) {
             return queryPlaceId;
         }

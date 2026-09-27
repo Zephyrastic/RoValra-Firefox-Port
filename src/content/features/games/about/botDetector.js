@@ -1,4 +1,5 @@
 import { callRobloxApi } from '../../../core/api.js';
+import { getPlaceIdFromUrl } from '../../../core/idExtractor.js';
 import { observeElement } from '../../../core/observer.js';
 import { addTooltip } from '../../../core/ui/tooltip.js';
 import DOMPurify from 'dompurify';
@@ -8,22 +9,6 @@ const MAX_SERVERS_TO_CHECK = 50;
 const BOT_PERCENTAGE_THRESHOLD = 10;
 const SIMILARITY_THRESHOLD = 5;
 const MIN_PLAYERS_TO_PROCESS = 3;
-
-function getPlaceIdFromUrl(url) {
-    const standardMatch = url.match(/\/games\/(\d+)/);
-    if (standardMatch && standardMatch[1]) return standardMatch[1];
-
-    const numericMatch = url.match(/\/games\/([0-9]+)/);
-    if (numericMatch && numericMatch[1]) return numericMatch[1];
-
-    const queryMatch = url.match(/[?&]placeId=(\d+)/i);
-    if (queryMatch && queryMatch[1]) return queryMatch[1];
-
-    const anyNumberMatch = url.match(/[^0-9](\d{8,})[^0-9]/);
-    if (anyNumberMatch && anyNumberMatch[1]) return anyNumberMatch[1];
-
-    return null;
-}
 
 class BotDetector {
     constructor() {

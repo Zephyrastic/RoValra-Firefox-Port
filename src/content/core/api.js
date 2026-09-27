@@ -6,6 +6,11 @@ import { HBAClient } from 'roblox-bat';
 import { getValidAccessToken } from './oauth/oauth.js';
 import { getValidApiKey, invalidateApiKey } from './utils/trackers/apiKey.js';
 import { showSystemAlert } from './ui/roblox/alert.js';
+import {
+    getExtensionRovalraUserAgent,
+    isFirefoxUserAgent,
+} from '../../shared/userAgent.js';
+import { sanitizeProxiedHeaders } from '../../shared/proxyHeaders.js';
 
 import { updateUserLocationIfChanged } from './utils/location.js';
 const activeRequests = new Map();
@@ -88,38 +93,7 @@ function recordRateLimitCooldown(key, response) {
 
 function getRovalraUserAgent() {
     if (cachedRovalraUserAgent) return cachedRovalraUserAgent;
-
-    const originalUA = navigator.userAgent;
-    let browser = 'Unknown';
-    let engine = 'Unknown';
-
-    if (originalUA.includes('Firefox/')) {
-        browser = 'Firefox';
-        engine = 'Gecko';
-    } else if (originalUA.includes('Edg/')) {
-        browser = 'Edge';
-        engine = 'Chromium';
-    } else if (originalUA.includes('OPR/') || originalUA.includes('Opera/')) {
-        browser = 'Opera';
-        engine = 'Chromium';
-    } else if (originalUA.includes('Chrome/')) {
-        browser = 'Chrome';
-        engine = 'Chromium';
-    } else if (originalUA.includes('Safari/')) {
-        browser = 'Safari';
-        engine = 'WebKit';
-    }
-
-    const manifest = chrome.runtime.getManifest();
-    const version = manifest.version || 'Unknown';
-    const isDevelopment = !('update_url' in manifest);
-    const environment = isDevelopment ? 'Development' : 'Production';
-
-    cachedRovalraUserAgent = `RoValraExtension(RoValra/${browser}/${engine}/${version}/${environment})`;
-    if (engine === 'Gecko' || engine === 'WebKit') {
-        cachedRovalraUserAgent += ' UnofficialRoValraVersion';
-    }
-
+    cachedRovalraUserAgent = getExtensionRovalraUserAgent();
     return cachedRovalraUserAgent;
 }
 
@@ -329,30 +303,7 @@ export function resetGameJoinErrorCount() {
     gameJoinErrorCount = 0;
 }
 
-const IS_FIREFOX = navigator.userAgent.includes('Firefox/');
-
-// A body handed back from the background travels as already-decoded text, so
-// the original transfer framing/encoding headers no longer describe it.
-const PROXY_STRIPPED_RESPONSE_HEADERS = new Set([
-    'content-encoding',
-    'content-length',
-    'transfer-encoding',
-    'connection',
-    'keep-alive',
-    'upgrade',
-    'trailer',
-    'te',
-]);
-
-function sanitizeProxiedHeaders(headers) {
-    const sanitized = {};
-    Object.entries(headers || {}).forEach(([key, value]) => {
-        if (!PROXY_STRIPPED_RESPONSE_HEADERS.has(key.toLowerCase())) {
-            sanitized[key] = value;
-        }
-    });
-    return sanitized;
-}
+const IS_FIREFOX = isFirefoxUserAgent(navigator.userAgent);
 
 /**
  * Firefox applies the page's Content-Security-Policy (connect-src) to

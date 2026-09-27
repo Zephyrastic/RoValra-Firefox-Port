@@ -30,7 +30,7 @@ import { callRobloxApi, callRobloxApiJson } from '../../core/api.js';
 import { safeHtml } from '../../core/packages/dompurify';
 import DOMPurify from 'dompurify';
 import { BADGE_CONFIG } from '../../core/configs/badges.js';
-import { t, ts } from '../../core/locale/i18n.js';
+import { scopedTs, t, ts } from '../../core/locale/i18n.js';
 import {
     CONTRIBUTOR_USER_IDS,
     CREATOR_USER_ID,
@@ -70,7 +70,7 @@ import { CUSTOM_ADDED_TAGS } from '../../core/utils/purifyCfg.js';
 import { OTHER_CONTRIBUTIONS } from '../../core/configs/otherContributions.js';
 
 const assets = getAssets();
-const ui = (key, options) => ts(`settings.ui.${key}`, options);
+const ui = scopedTs('settings.ui');
 const CREDITS_USER_IDS = [
     ...new Set([
         CREATOR_USER_ID,

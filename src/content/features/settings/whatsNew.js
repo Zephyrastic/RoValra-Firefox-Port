@@ -1,9 +1,9 @@
-import { ts } from '../../core/locale/i18n.js';
+import { scopedTs } from '../../core/locale/i18n.js';
 import { parseUntrustedMarkdown } from '../../core/utils/markdown.js';
 import { createPill } from '../../core/ui/general/pill.js';
 import DOMPurify from 'dompurify';
 
-const ui = (key, options) => ts(`settings.ui.whatsNew.${key}`, options);
+const ui = scopedTs('settings.ui.whatsNew');
 
 // The GitHub Releases API is CORS-open (access-control-allow-origin: *), so
 // the background's fetchJson handler can pull it without any RoValra backend

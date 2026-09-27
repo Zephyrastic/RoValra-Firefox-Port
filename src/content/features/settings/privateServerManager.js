@@ -1,5 +1,5 @@
 import { callRobloxApi } from '../../core/api.js';
-import { ts } from '../../core/locale/i18n.js';
+import { scopedTs, ts } from '../../core/locale/i18n.js';
 import { fetchThumbnails } from '../../core/thumbnail/thumbnails.js';
 import { createOverlay } from '../../core/ui/overlay.js';
 import { createButton } from '../../core/ui/buttons.js';
@@ -7,7 +7,7 @@ import { createToggle } from '../../core/ui/general/toggle.js';
 import { createSpinner } from '../../core/ui/spinner.js';
 import { showConfirmationPrompt } from '../../core/ui/confirmationPrompt.js';
 
-const ui = (key, options) => ts(`settings.ui.privateServers.${key}`, options);
+const ui = scopedTs('settings.ui.privateServers');
 
 const LIST_ENDPOINT =
     '/v1/private-servers/my-private-servers?itemsPerPage=100&privateServersTab=MyPrivateServers';

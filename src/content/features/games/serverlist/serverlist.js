@@ -785,7 +785,7 @@ async function loadServerIpMap() {
 
 export function processUptimeBatch() {
     if (_state.uptimeBatch.size === 0) return;
-    const placeId = window.location.pathname.match(/\/games\/(\d+)(?:\/|$)/)?.[1];
+    const placeId = getPlaceIdFromUrl();
     if (!placeId) return;
 
     const batch = Array.from(_state.uptimeBatch);

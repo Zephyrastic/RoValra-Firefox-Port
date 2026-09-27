@@ -1,4 +1,5 @@
 import { callRobloxApiJson } from '../../core/api.js';
+import { getPlaceIdFromUrl } from '../../core/idExtractor.js';
 import {
     getPlaceDetails,
     getUniversesDetails,
@@ -132,7 +133,7 @@ function decorateCards() {
             `#HomeContainer a.game-card-link[href*="sortSubId=${SUB_ID}"]`,
         )
         .forEach((card) => {
-            const placeId = card.href.match(/\/games\/(\d+)/)?.[1];
+            const placeId = getPlaceIdFromUrl(card.href);
             const seconds = playtimes.get(placeId);
             const row =
                 card.querySelector('[data-testid="game-tile-stats"]') ||

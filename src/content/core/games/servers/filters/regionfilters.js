@@ -1,6 +1,7 @@
 import { observeElement, startObserving } from '../../../observer.js';
 import { getAssets } from '../../../assets.js';
 import { callRobloxApiJson } from '../../../api.js';
+import { getPlaceIdFromUrl as getCanonicalPlaceId } from '../../../idExtractor.js';
 import { addTooltip } from '../../../ui/tooltip.js';
 import {
     loadDatacenterMap,
@@ -160,18 +161,10 @@ function injectScript(src) {
     });
 }
 
+// The globe predates the shared extractor and additionally falls back to the
+// injected root place id. Query-param handling lives in the shared helper.
 function getPlaceIdFromUrl() {
-    try {
-        const url = window.location.href;
-        const qp = new URLSearchParams(window.location.search);
-        const qpId =
-            qp.get('placeId') || qp.get('place_id') || qp.get('placeid');
-        if (qpId && /^\d+$/.test(qpId)) return qpId;
-        const match =
-            url.match(/\/games\/([0-9]+)/i) || url.match(/\/(\d{5,})\b/);
-        if (match) return match[1];
-    } catch {}
-    return DEFAULT_PLACE_ID;
+    return getCanonicalPlaceId() || DEFAULT_PLACE_ID;
 }
 
 function closeGlobalPanels() {
