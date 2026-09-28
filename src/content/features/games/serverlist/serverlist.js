@@ -6,7 +6,11 @@ import { getPlaceIdFromUrl } from '../../../core/idExtractor.js';
 import { initServerIdExtraction } from '../../../core/games/servers/serverids.js';
 import { loadDatacenterMap, serverIpMap } from '../../../core/regions.js';
 import { initGlobalStatsBar } from '../../../core/games/servers/serverstats.js';
-import { observeElement, startObserving } from '../../../core/observer.js';
+import {
+    observeChildren,
+    observeElement,
+    startObserving,
+} from '../../../core/observer.js';
 import { initRegionFilters } from '../../../core/games/servers/filters/regionfilters.js';
 import { initUptimeFilters } from '../../../core/games/servers/filters/uptimefilters.js';
 import { initVersionFilters } from '../../../core/games/servers/filters/versionfilters.js';
@@ -800,49 +804,6 @@ export function processUptimeBatch() {
         ).catch(() => {});
     } catch (e) {}
 }
-// Roblox's redesigned server cards no longer carry the legacy
-// .rbx-*-game-server-item classes, so the fiber-ID observers never fire for
-// them. The cards do print a short ID (`ID: ab12-cd34`, the GUID prefix), so
-// match it against full IDs from the intercepted API responses and attribute
-// the card. From there the regular enhance pipeline takes over.
-function correlateNativeCardByShortId(serverId) {
-    const full = String(serverId || '').toLowerCase();
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(full)) {
-        return null;
-    }
-    const short = `${full.slice(0, 4)}-${full.slice(4, 8)}`;
-
-    const container = findServerListContainer();
-    if (!container) return null;
-
-    const walker = document.createTreeWalker(
-        container,
-        NodeFilter.SHOW_TEXT,
-    );
-    let node = walker.nextNode();
-    while (node) {
-        const text = node.nodeValue?.toLowerCase();
-        if (text && text.includes(short)) {
-            let root = node.parentElement;
-            while (root && root.parentElement !== container) {
-                root = root.parentElement;
-            }
-            if (!root || root.parentElement !== container) return null;
-            // Never steal a card that already belongs to another server, and
-            // never match inside our own attributed subtrees.
-            if (root.querySelector('[data-rovalra-serverid]')) return null;
-            const existing = root.getAttribute('data-rovalra-serverid');
-            if (existing && existing !== serverId) return null;
-            if (!existing) {
-                root.setAttribute('data-rovalra-serverid', serverId);
-            }
-            return root;
-        }
-        node = walker.nextNode();
-    }
-    return null;
-}
-
 async function getReactServerId(element) {
     return new Promise((resolve) => {
         const extractionId = Math.random().toString(36).substring(2, 15);
@@ -1041,6 +1002,141 @@ async function refreshPrivateServerGrid() {
     }
 }
 
+function getEnhanceContext() {
+    return {
+        serverDataCache: _state.serverDataCache,
+        serverLocations: _state.serverLocations,
+        serverStatuses: _state.serverStatuses,
+        serverUptimes: _state.serverUptimes,
+        serverPerformanceCache: _state.serverPerformanceCache,
+        vipStatusCache: _state.vipStatusCache,
+        uptimeBatch: _state.uptimeBatch,
+        serverIpMap: _state.serverIpMap,
+        processUptimeBatch,
+    };
+}
+
+// Full server IDs recently seen in intercepted game-server API responses,
+// scoped to the current place. Used to identify redesigned cards (see below).
+const nativeIdCache = { placeId: null, ids: [] };
+
+function rememberNativeServerIds(placeId, serversArray) {
+    if (!placeId || !Array.isArray(serversArray)) return;
+    if (nativeIdCache.placeId !== String(placeId)) {
+        nativeIdCache.placeId = String(placeId);
+        nativeIdCache.ids = [];
+    }
+    for (const serverData of serversArray) {
+        const id =
+            serverData?.id || serverData?.server_id || serverData?.serverId;
+        if (id && !nativeIdCache.ids.includes(id)) {
+            nativeIdCache.ids.push(id);
+            if (nativeIdCache.ids.length > 500) {
+                nativeIdCache.ids.splice(
+                    0,
+                    nativeIdCache.ids.length - 500,
+                );
+            }
+        }
+    }
+}
+
+function findFullIdForShortId(shortText) {
+    const needle = String(shortText || '')
+        .replace(/-/g, '')
+        .toLowerCase();
+    if (!/^[0-9a-f]{8}$/.test(needle)) return null;
+    for (const id of nativeIdCache.ids) {
+        if (
+            String(id)
+                .replace(/-/g, '')
+                .toLowerCase()
+                .startsWith(needle)
+        ) {
+            return id;
+        }
+    }
+    return null;
+}
+
+// Roblox's redesigned server cards no longer carry the legacy
+// .rbx-*-game-server-item classes, so the fiber-ID observers never fire for
+// them. The cards do print a short ID (`ID: ab12-cd34`, the GUID prefix):
+// scan each card-like node for it, resolve the full ID from recently
+// intercepted API responses, and attribute the card. The regular enhance
+// pipeline takes over from there. Nodes that do not look like cards, or
+// cards whose short ID is unknown, are left untouched.
+const NATIVE_SHORT_ID_PATTERN = /\b([0-9a-f]{4})-([0-9a-f]{4})\b/i;
+
+function scanModernServerCards(list) {
+    if (!list) return;
+    for (const child of list.children) {
+        if (child.nodeType !== 1) continue;
+        if (child.hasAttribute('data-rovalra-serverid')) continue;
+        if (child.querySelector('[data-rovalra-serverid]')) continue;
+        if (!child.querySelector('button')) continue;
+        const match = (child.textContent || '').match(
+            NATIVE_SHORT_ID_PATTERN,
+        );
+        if (!match) continue;
+        const fullId = findFullIdForShortId(match[0]);
+        if (!fullId) continue;
+        child.setAttribute('data-rovalra-serverid', fullId);
+        try {
+            enhanceServer(child, getEnhanceContext()).catch(() => {});
+        } catch {}
+    }
+}
+
+function watchModernServerSection(section) {
+    if (!section || section.dataset.rovalraCardWatch === 'true') return;
+    const headerText =
+        section.querySelector('h3')?.textContent?.toLowerCase() || '';
+    if (!headerText.includes('server')) return;
+    section.dataset.rovalraCardWatch = 'true';
+
+    let scanTimer = 0;
+    let currentList = null;
+    let listWatcher = null;
+
+    // Multiplexed on the shared page observer (see core/observer.js), which
+    // notifies per-element childList changes.
+    const scheduleScan = () => {
+        clearTimeout(scanTimer);
+        scanTimer = setTimeout(() => {
+            const list =
+                section.querySelector(
+                    ':scope > .flex.flex-col:not(.gap-xsmall)',
+                ) || section;
+            scanModernServerCards(list);
+            if (list !== currentList) {
+                listWatcher?.disconnect();
+                currentList = list;
+                if (list !== section) {
+                    listWatcher = observeChildren(list, (mutation) => {
+                        if (
+                            mutation.addedNodes?.length ||
+                            mutation.removedNodes?.length
+                        ) {
+                            scheduleScan();
+                        }
+                    });
+                }
+            }
+        }, 150);
+    };
+
+    scheduleScan();
+    observeChildren(section, (mutation) => {
+        if (
+            mutation.addedNodes?.length ||
+            mutation.removedNodes?.length
+        ) {
+            scheduleScan();
+        }
+    });
+}
+
 function initializeEnhancementObserver() {
     const serverSelector =
         '.rbx-public-game-server-item, .rbx-friends-game-server-item, .flex.items-center.justify-between.padding-y-medium.width-full';
@@ -1055,6 +1151,12 @@ function initializeEnhancementObserver() {
             120,
         );
     };
+
+    observeElement(
+        '.flex.flex-col.gap-large.width-full',
+        (section) => watchModernServerSection(section),
+        { multiple: true },
+    );
 
     observeElement(
         serverSelector,
@@ -1123,24 +1225,7 @@ function initializeEnhancementObserver() {
             }
 
             try {
-                enhanceServer(el, {
-                    serverDataCache: _state.serverDataCache,
-                    serverLocations:
-                        _state.serverLocations,
-                    serverStatuses:
-                        _state.serverStatuses,
-                    serverUptimes:
-                        _state.serverUptimes,
-                    serverPerformanceCache:
-                        _state.serverPerformanceCache,
-                    vipStatusCache:
-                        _state.vipStatusCache,
-                    uptimeBatch:
-                        _state.uptimeBatch,
-                    serverIpMap:
-                        _state.serverIpMap,
-                    processUptimeBatch,
-                }).catch(() => {});
+                enhanceServer(el, getEnhanceContext()).catch(() => {});
             } catch (e) {}
 
             scheduleUptime();
@@ -1161,6 +1246,12 @@ try {
                   ? data
                   : null;
             if (!serversArray) return;
+
+            rememberNativeServerIds(
+                detail?.url?.match?.(/\/games\/(\d+)/)?.[1] ||
+                    getPlaceIdFromUrl(),
+                serversArray,
+            );
 
             (async () => {
                 for (const serverData of serversArray) {
@@ -1194,10 +1285,9 @@ try {
                             );
                     }
 
-                    const serverElement =
-                        document.querySelector(
-                            `[data-rovalra-serverid="${serverId}"]`,
-                        ) || correlateNativeCardByShortId(serverId);
+                    const serverElement = document.querySelector(
+                        `[data-rovalra-serverid="${serverId}"]`,
+                    );
                     if (serverElement) {
                         serverElement._rovalraApiData = serverData;
                         serverElement.setAttribute('data-rovalra-api', '1');
