@@ -1,23 +1,58 @@
-// Roblox's CSP img-src does not allow rovalra.com, so <img> elements
-// pointing at RoValra-hosted assets render as broken images in both
-// Chromium and Firefox. Swap their src for a background-fetched data: URI
-// (img-src allows data:) as soon as they enter the DOM.
+// Roblox's CSP img-src does not allow rovalra.com or flagcdn.com, so <img>
+// elements pointing at RoValra-hosted assets or country flags render as
+// broken images in both Chromium and Firefox. Swap their src for a
+// background-fetched data: URI (img-src allows data:) as soon as they enter
+// the DOM.
 
 import { rovalraImage } from '../../core/utils/rovalraImage.js';
 
-const ROVALRA_IMAGE_PATTERN = /^https:\/\/([a-z0-9-]+\.)*rovalra\.com\//i;
+const PROXIABLE_IMAGE_PATTERN =
+    /^https:\/\/([a-z0-9-]+\.)*rovalra\.com\//i;
+const FLAG_IMAGE_PATTERN = /^https:\/\/([a-z0-9-]+\.)*flagcdn\.com\//i;
+
+function pickProxyTarget(img, src) {
+    // Prefer the hi-res srcset candidate so the inlined bitmap stays crisp
+    // on high-density displays.
+    const srcset = img.getAttribute('srcset');
+    if (srcset) {
+        const candidate = srcset
+            .split(',')
+            .map((part) => part.trim().split(/\s+/)[0])
+            .find(
+                (url) =>
+                    url &&
+                    (PROXIABLE_IMAGE_PATTERN.test(url) ||
+                        FLAG_IMAGE_PATTERN.test(url)),
+            );
+        if (candidate) {
+            try {
+                return new URL(candidate, window.location.origin).href;
+            } catch {
+                return candidate;
+            }
+        }
+    }
+    return src;
+}
 
 function swapImage(img) {
     if (!img || img.tagName !== 'IMG') return;
 
     const src = img.src;
     if (!src || src.startsWith('data:')) return;
-    if (!ROVALRA_IMAGE_PATTERN.test(src)) return;
+    if (
+        !PROXIABLE_IMAGE_PATTERN.test(src) &&
+        !FLAG_IMAGE_PATTERN.test(src)
+    ) {
+        return;
+    }
 
-    rovalraImage(src)
+    const target = pickProxyTarget(img, src);
+    rovalraImage(target)
         .then((dataUri) => {
             // Re-check: the element may have been re-pointed meanwhile.
             if (img.src === src) {
+                img.removeAttribute('srcset');
                 img.src = dataUri;
             }
         })

@@ -665,12 +665,17 @@ export function displayIpAndDcId(server) {
         return;
     }
 
-    let idDiv = server.querySelector('.server-id-text');
-    if (!idDiv) return;
+    const idDiv = server.querySelector('.server-id-text');
 
     if (!extraDiv) {
         extraDiv = document.createElement('div');
-        idDiv.after(extraDiv);
+        if (idDiv) {
+            idDiv.after(extraDiv);
+        } else {
+            // Redesigned cards have no .server-id-text anchor: dock the
+            // row into the details container instead.
+            getOrCreateDetailsContainer(server).appendChild(extraDiv);
+        }
     }
 
     extraDiv.className = 'rovalra-server-extra-details text-info xsmall';

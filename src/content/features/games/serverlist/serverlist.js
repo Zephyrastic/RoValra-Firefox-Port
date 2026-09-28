@@ -800,6 +800,49 @@ export function processUptimeBatch() {
         ).catch(() => {});
     } catch (e) {}
 }
+// Roblox's redesigned server cards no longer carry the legacy
+// .rbx-*-game-server-item classes, so the fiber-ID observers never fire for
+// them. The cards do print a short ID (`ID: ab12-cd34`, the GUID prefix), so
+// match it against full IDs from the intercepted API responses and attribute
+// the card. From there the regular enhance pipeline takes over.
+function correlateNativeCardByShortId(serverId) {
+    const full = String(serverId || '').toLowerCase();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(full)) {
+        return null;
+    }
+    const short = `${full.slice(0, 4)}-${full.slice(4, 8)}`;
+
+    const container = findServerListContainer();
+    if (!container) return null;
+
+    const walker = document.createTreeWalker(
+        container,
+        NodeFilter.SHOW_TEXT,
+    );
+    let node = walker.nextNode();
+    while (node) {
+        const text = node.nodeValue?.toLowerCase();
+        if (text && text.includes(short)) {
+            let root = node.parentElement;
+            while (root && root.parentElement !== container) {
+                root = root.parentElement;
+            }
+            if (!root || root.parentElement !== container) return null;
+            // Never steal a card that already belongs to another server, and
+            // never match inside our own attributed subtrees.
+            if (root.querySelector('[data-rovalra-serverid]')) return null;
+            const existing = root.getAttribute('data-rovalra-serverid');
+            if (existing && existing !== serverId) return null;
+            if (!existing) {
+                root.setAttribute('data-rovalra-serverid', serverId);
+            }
+            return root;
+        }
+        node = walker.nextNode();
+    }
+    return null;
+}
+
 async function getReactServerId(element) {
     return new Promise((resolve) => {
         const extractionId = Math.random().toString(36).substring(2, 15);
@@ -1151,9 +1194,10 @@ try {
                             );
                     }
 
-                    const serverElement = document.querySelector(
-                        `[data-rovalra-serverid="${serverId}"]`,
-                    );
+                    const serverElement =
+                        document.querySelector(
+                            `[data-rovalra-serverid="${serverId}"]`,
+                        ) || correlateNativeCardByShortId(serverId);
                     if (serverElement) {
                         serverElement._rovalraApiData = serverData;
                         serverElement.setAttribute('data-rovalra-api', '1');

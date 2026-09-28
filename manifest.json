@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "__MSG_extensionName__",
-    "version": "2.6.46",
+    "version": "2.6.47",
     "description": "__MSG_extensionDescription__",
     "default_locale": "en",
     "content_scripts": [
@@ -34,7 +34,8 @@
         "https://*.rovalra.com/*",
         "https://setup.rbxcdn.com/*",
         "https://fonts.googleapis.com/*",
-        "https://fonts.gstatic.com/*"
+        "https://fonts.gstatic.com/*",
+        "https://flagcdn.com/*"
     ],
     "background": {
         "service_worker": "background.js"

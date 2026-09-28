@@ -8,13 +8,23 @@ import { uint8ToBase64 } from '../shared/base64.js';
 const rovalraImageCache = new Map();
 const googleFontCssCache = new Map();
 
+const PROXIED_IMAGE_HOSTS = new Set(['rovalra.com', 'flagcdn.com']);
+
+function isProxiedImageHost(hostname) {
+    if (PROXIED_IMAGE_HOSTS.has(hostname)) return true;
+    return (
+        hostname.endsWith('.rovalra.com') || hostname.endsWith('.flagcdn.com')
+    );
+}
+
 export async function loadRovalraImage(url) {
     const parsedUrl = new URL(url);
-    const isRovalraHost =
-        parsedUrl.protocol === 'https:' &&
-        (parsedUrl.hostname === 'rovalra.com' ||
-            parsedUrl.hostname.endsWith('.rovalra.com'));
-    if (!isRovalraHost) {
+    // RoValra assets plus flagcdn country flags: Roblox's page CSP img-src
+    // blocks both, so they are proxied to data: URIs instead.
+    if (
+        parsedUrl.protocol !== 'https:' ||
+        !isProxiedImageHost(parsedUrl.hostname)
+    ) {
         throw new Error('Unsupported rovalraImage host');
     }
 
