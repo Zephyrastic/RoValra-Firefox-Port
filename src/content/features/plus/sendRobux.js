@@ -820,8 +820,6 @@ export function initBuyRobuxPage() {
 
             const profileUserSettings = await getUserSettings(transferData.sender.id);
 
-            console.log(childIndex, transferData, element)
-
             const newEl = element.cloneNode(true);
 
             newEl.dataset.rovalraSendrobuxHooked = true

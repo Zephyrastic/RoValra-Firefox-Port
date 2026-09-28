@@ -2,7 +2,11 @@ let observerInitialized = false;
 const observationRequests = new Set();
 let globalObserver = null;
 let attributeListeners = new Map();
-let childListListeners = new Map();
+// WeakMap: entries vanish with their element, so SPA navigation cannot
+// accumulate dead listeners from callers that never disconnect.
+// (attributeListeners above must stay a Map: the ancestor fallback in the
+// mutation handler iterates it, which WeakMaps do not support.)
+let childListListeners = new WeakMap();
 const characterDataListeners = new WeakMap();
 const trackedRequestsByElement = new WeakMap();
 

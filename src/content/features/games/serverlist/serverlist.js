@@ -1066,7 +1066,7 @@ function findFullIdForShortId(shortText) {
 // intercepted API responses, and attribute the card. The regular enhance
 // pipeline takes over from there. Nodes that do not look like cards, or
 // cards whose short ID is unknown, are left untouched.
-const NATIVE_SHORT_ID_PATTERN = /\b([0-9a-f]{4})-([0-9a-f]{4})\b/i;
+const NATIVE_SHORT_ID_PATTERN = /\b[0-9a-f]{4}-[0-9a-f]{4}\b/i;
 
 function scanModernServerCards(list) {
     if (!list) return;
@@ -1088,32 +1088,56 @@ function scanModernServerCards(list) {
     }
 }
 
+// Active watchers by section element. Entries are removed when the section
+// leaves the DOM (see unwatchModernServerSection), so SPA navigation cannot
+// accumulate dead listeners in the shared observer's registry.
+const modernSectionWatchers = new WeakMap();
+
+function unwatchModernServerSection(section) {
+    const watcher = modernSectionWatchers.get(section);
+    if (!watcher) return;
+    modernSectionWatchers.delete(section);
+    clearTimeout(watcher.scanTimer);
+    watcher.listWatcher?.disconnect();
+    watcher.sectionWatcher?.disconnect();
+}
+
 function watchModernServerSection(section) {
-    if (!section || section.dataset.rovalraCardWatch === 'true') return;
+    if (
+        !section ||
+        (section.dataset.rovalraCardWatch === 'true' &&
+            modernSectionWatchers.has(section))
+    ) {
+        return;
+    }
     const headerText =
         section.querySelector('h3')?.textContent?.toLowerCase() || '';
     if (!headerText.includes('server')) return;
     section.dataset.rovalraCardWatch = 'true';
 
-    let scanTimer = 0;
-    let currentList = null;
-    let listWatcher = null;
-
     // Multiplexed on the shared page observer (see core/observer.js), which
     // notifies per-element childList changes.
+    const watcher = {
+        scanTimer: 0,
+        currentList: null,
+        listWatcher: null,
+        sectionWatcher: null,
+    };
+    modernSectionWatchers.set(section, watcher);
+
     const scheduleScan = () => {
-        clearTimeout(scanTimer);
-        scanTimer = setTimeout(() => {
+        clearTimeout(watcher.scanTimer);
+        watcher.scanTimer = setTimeout(() => {
             const list =
                 section.querySelector(
                     ':scope > .flex.flex-col:not(.gap-xsmall)',
                 ) || section;
             scanModernServerCards(list);
-            if (list !== currentList) {
-                listWatcher?.disconnect();
-                currentList = list;
+            if (list !== watcher.currentList) {
+                watcher.listWatcher?.disconnect();
+                watcher.currentList = list;
                 if (list !== section) {
-                    listWatcher = observeChildren(list, (mutation) => {
+                    watcher.listWatcher = observeChildren(list, (mutation) => {
                         if (
                             mutation.addedNodes?.length ||
                             mutation.removedNodes?.length
@@ -1121,13 +1145,15 @@ function watchModernServerSection(section) {
                             scheduleScan();
                         }
                     });
+                } else {
+                    watcher.listWatcher = null;
                 }
             }
         }, 150);
     };
 
     scheduleScan();
-    observeChildren(section, (mutation) => {
+    watcher.sectionWatcher = observeChildren(section, (mutation) => {
         if (
             mutation.addedNodes?.length ||
             mutation.removedNodes?.length
@@ -1155,7 +1181,10 @@ function initializeEnhancementObserver() {
     observeElement(
         '.flex.flex-col.gap-large.width-full',
         (section) => watchModernServerSection(section),
-        { multiple: true },
+        {
+            multiple: true,
+            onRemove: (section) => unwatchModernServerSection(section),
+        },
     );
 
     observeElement(

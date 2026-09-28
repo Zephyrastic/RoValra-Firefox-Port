@@ -4297,7 +4297,6 @@ async function addCatalogButton(rightToolbar) {
 
     container.appendChild(button);
     rightToolbar.parentElement.insertBefore(container, rightToolbar);
-    console.log('%cRoValra Explorer: button added (catalog)', 'color:#FF4500');
 }
 
 function addBundleButton(rightToolbar) {
@@ -4345,7 +4344,6 @@ function addBundleButton(rightToolbar) {
 
     container.appendChild(button);
     rightToolbar.parentElement.insertBefore(container, rightToolbar);
-    console.log('%cRoValra Explorer: button added (bundle)', 'color:#FF4500');
 }
 
 function addGameButton(host, prepend = true) {
@@ -4400,7 +4398,6 @@ function addGameButton(host, prepend = true) {
         } else {
             host.appendChild(button);
         }
-        console.log('%cRoValra Explorer: button added (game)', 'color:#FF4500');
     });
 }
 
