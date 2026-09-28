@@ -642,8 +642,8 @@ export function initNotificationCenter() {
 
             const childrenObserver = observeChildren(element, (child) => {
                 try {
-                    var oldEl = element.querySelector('.notif-row-right-button');
-                    var newEl = oldEl.cloneNode(true);
+                    const oldEl = element.querySelector('.notif-row-right-button');
+                    const newEl = oldEl.cloneNode(true);
 
                     newEl.addEventListener('click', (ev) => {
                         ev.preventDefault()
@@ -674,8 +674,8 @@ export function initBuyRobuxPage() {
 
         startObserving();
 
-        var friendsToSendRobux = null;
-        var thumbnailData = null;
+        let friendsToSendRobux = null;
+        let thumbnailData = null;
 
         // friendsRobuxCache
         async function friendsRobuxInit() {
@@ -697,8 +697,8 @@ export function initBuyRobuxPage() {
             const userSortIdsArray = [...userSortIds];
 
 
-            var allUserProfiles = await getUserProfileData(userSortIdsArray);
-            var thumbnails = await getBatchThumbnails(userSortIdsArray, 'AvatarHeadshot');
+            const allUserProfiles = await getUserProfileData(userSortIdsArray);
+            const thumbnails = await getBatchThumbnails(userSortIdsArray, 'AvatarHeadshot');
 
             for (const idIndexString in userSortIdsArray) {
                 const idIndex = Number(idIndexString);
@@ -716,7 +716,7 @@ export function initBuyRobuxPage() {
 
             const waitForImageObserver = observeElement('img', () => {
                 if (!element.isConnected) return;
-                var newEl = element.cloneNode(true);
+                const newEl = element.cloneNode(true);
 
                 newEl.dataset.rovalraSendrobuxHooked = true
                 newEl.addEventListener('click', (ev) => {
@@ -822,7 +822,7 @@ export function initBuyRobuxPage() {
 
             console.log(childIndex, transferData, element)
 
-            var newEl = element.cloneNode(true);
+            const newEl = element.cloneNode(true);
 
             newEl.dataset.rovalraSendrobuxHooked = true
             newEl.querySelector('button').addEventListener('click', (ev) => {

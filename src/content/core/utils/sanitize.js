@@ -80,6 +80,11 @@ export function setSafeAttribute(element, attrName, attrValue) {
     return element;
 }
 
+// Assigning these keys would invoke setters on Object.prototype instead of
+// creating own properties (prototype pollution via crafted storage or API
+// payloads). They are never legitimate setting or API-data keys.
+const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export function sanitizeObject(obj) {
     if (obj === null || obj === undefined) {
         return obj;
@@ -100,7 +105,9 @@ export function sanitizeObject(obj) {
     if (typeof obj === 'object') {
         const sanitized = {};
         for (const [key, value] of Object.entries(obj)) {
+            if (UNSAFE_OBJECT_KEYS.has(key)) continue;
             const sanitizedKey = sanitizeString(key);
+            if (UNSAFE_OBJECT_KEYS.has(sanitizedKey)) continue;
             sanitized[sanitizedKey] = sanitizeObject(value);
         }
         return sanitized;
@@ -206,13 +213,10 @@ export function sanitizeSettings(settings, SETTINGS_CONFIG = null) {
         }
     } else {
         for (const [key, value] of Object.entries(settings)) {
+            if (UNSAFE_OBJECT_KEYS.has(key)) continue;
             sanitized[key] = sanitizeObject(value);
         }
     }
-
-    delete sanitized.__proto__;
-    delete sanitized.constructor;
-    delete sanitized.prototype;
 
     return sanitized;
 }

@@ -20,7 +20,7 @@ async function extractServerIdFromFiber(server) {
     injectExtractorScript();
 
     return new Promise((resolve) => {
-        const extractionId = `rovalra_extract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const extractionId = `rovalra_extract_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
         server.setAttribute('data-rovalra-extraction-id', extractionId);
 

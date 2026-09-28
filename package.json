@@ -1,6 +1,6 @@
 {
   "name": "rovalra",
-  "version": "2.6.48",
+  "version": "2.6.49",
   "description": "An extension aiming to provide features that other Roblox extensions pay wall!",
   "private": true,
   "scripts": {
@@ -15,11 +15,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/chrome": "^0.2.2",
-    "@types/three": "^0.185.4",
+    "@types/chrome": "^0.3.0",
+    "@types/three": "^0.186.0",
     "chrome-types": "^0.1.435",
     "esbuild": "^0.28.1",
-    "eslint": "10.7.0",
+    "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.7.0",
     "prettier": "^3.9.6",
@@ -32,7 +32,7 @@
     "dompurify": "^3.4.11",
     "fflate": "^0.8.3",
     "fzstd": "^0.1.1",
-    "i18next": "26.3.6",
+    "i18next": "^26.4.2",
     "marked": "^18.0.5",
     "roavatar-renderer": "^1.9.5",
     "roblox-bat": "0.6.5"
@@ -48,7 +48,10 @@
     "*.js": "eslint --fix",
     "*.{js,json,css,md}": "prettier --write"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "allowScripts": {
-    "esbuild@0.28.1": true
+    "esbuild@0.28.2": true
   }
 }

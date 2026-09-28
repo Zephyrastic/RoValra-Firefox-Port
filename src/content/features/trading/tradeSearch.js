@@ -67,7 +67,7 @@ export function init() {
 
 function injectSearchInput(dropdown) {
     const { container, input } = createStyledInput({
-        id: `rovalra-trade-search-${Math.random().toString(36).substr(2, 9)}`,
+        id: `rovalra-trade-search-${Math.random().toString(36).slice(2, 11)}`,
         label: ts('trading.searchInventory'),
     });
 
