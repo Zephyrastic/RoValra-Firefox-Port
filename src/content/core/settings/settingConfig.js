@@ -24,13 +24,17 @@ export const SETTINGS_CONFIG = {
                 description: [
                     'Manually configure a language for RoValra. Some translations may be missing.',
                     // it works on the setting page only once it figures out the language from other pages' URLs
-                    'Requires a refresh for changes to apply. Might not work immediately on the settings page.',
+                    'The page will reload to apply changes. Might not work immediately on the settings page.',
                 ],
                 type: 'select',
                 options: [
                     {
                         label: languageLabel('English', 'en'),
                         value: 'en',
+                    },
+                    {
+                        label: languageLabel('French (Français)', 'fr'),
+                        value: 'fr',
                     },
                     {
                         label: languageLabel('Polish (Polski)', 'pl'),
@@ -41,8 +45,28 @@ export const SETTINGS_CONFIG = {
                         value: 'ro',
                     },
                     {
+                        label: languageLabel('Indonesian (Bahasa Indonesia)', 'id'),
+                        value: 'id',
+                    },
+                    {
+                        label: languageLabel('Russian (Русский)', 'ru'),
+                        value: 'ru',
+                    },
+                    {
                         label: languageLabel('Spanish (Español)', 'es'),
                         value: 'es',
+                    },
+                    {
+                        label: languageLabel('Traditional Chinese (繁體中文)', 'zh-CHT'),
+                        value: 'zh-CHT',
+                    },
+                    {
+                        label: languageLabel('Simplified Chinese (简体中文)', 'zh-CHS'),
+                        value: 'zh-CHS',
+                    },
+                    {
+                        label: languageLabel('Arabic (عربي)', 'ar'),
+                        value: 'ar',
                     },
                     { label: 'Automatic', value: 'auto' },
                 ],
@@ -1019,6 +1043,16 @@ export const SETTINGS_CONFIG = {
                     'This feature shows how long you have been friends with someone on their profile and in your friends list.',
                 type: 'checkbox',
                 default: true,
+            },
+            mutualFriendsEnabled: {
+                label: 'Mutual Friends',
+                description: [
+                    'Shows how many friends you have in common with a user on their profile.',
+                    'Click it to see them in a Mutuals tab on their friends page.',
+                ],
+                type: 'checkbox',
+                default: true,
+                contributors: ['2020751790'],
             },
             groupRoleEnabled: {
                 label: 'Show Community Roles',
@@ -2001,7 +2035,6 @@ export const SETTINGS_CONFIG = {
                 type: 'checkbox',
                 default: true,
                 contributors: ['650766686', '48255812'],
-                exclusiveWith: ['qolTogglesEnabled'],
                 childSettings: {
                     // Toggles to be in the menu
                     privacyTogglesDropdownOnlineStatusEnabled: {
@@ -2034,6 +2067,15 @@ export const SETTINGS_CONFIG = {
                         type: 'checkbox',
                         default: true,
                     },
+                    // Keep this one last please
+                    privacyTogglesOldIconEnabled: {
+                        label: 'Old QOL Toggles Icon',
+                        description: [
+                            'Enable the old QOL Toggles icon (<icon>three-bars-horizontal</icon>). <b>Needs a refresh</b>',
+                        ],
+                        type: 'checkbox',
+                        default: false,
+                    },
                 },
             },
             qolTogglesEnabled: {
@@ -2047,6 +2089,7 @@ export const SETTINGS_CONFIG = {
                 isPermanent: true,
                 locked: 'Replaced by Privacy Toggles in Navigation',
                 deprecated: 'Replaced by Privacy Toggles in Navigation.',
+                hidden: true,
             },
             sidebarCollapseEnabled: {
                 label: 'Collapsible Sidebar',

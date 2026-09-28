@@ -36,6 +36,7 @@ import {
 const activeRequests = new Map();
 const responseCache = new Map();
 const USER_BADGES_CACHE_TTL_MS = 5 * 60 * 1000;
+const GITHUB_SPONSOR_AVATAR_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 let gameJoinErrorCount = 0;
 let lastGameJoinRequestTime = 0;
 const GAMEJOIN_TIMEOUT_MS = 2000;
@@ -91,6 +92,10 @@ function getResponseCacheTtl(options) {
 
     if (/^\/v1\/users\/[^/]+\/badges(?:\?|$)/.test(options.endpoint)) {
         return USER_BADGES_CACHE_TTL_MS;
+    }
+
+    if (/^\/v1\/github\/sponsors\/[^/]+\/avatar(?:\?|$)/.test(options.endpoint)) {
+        return GITHUB_SPONSOR_AVATAR_CACHE_TTL_MS;
     }
 
     return 0;

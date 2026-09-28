@@ -37,6 +37,8 @@ export const CONTRIBUTOR_USER_IDS = [
     '3050364170', // Eli_Cauver :3
     '315646839', // imderlord :3
     '231260921', // textuired
+    '2020751790', // Orellius
+    '200565345', // krampuszc
 ];
 
 export const TESTER_USER_IDS = [
@@ -49,6 +51,11 @@ export const TRANSLATOR_USER_IDS = [
     '3121706', // AuroxNova
     '48255812', //aliceenight
     '315646839', // imderlord
+    '9502859424', // moowi1337
+    '2239549101', // TimorousShadow
+    '519742979', // BBasilio2001
+    '3733653415 ', // kurdo3660
+    '16147087', // Edward667
 ];
 
 export const ARTIST_USER_IDS = [

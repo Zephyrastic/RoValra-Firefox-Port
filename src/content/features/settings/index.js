@@ -76,7 +76,7 @@ const CREDITS_USER_IDS = [
         CREATOR_USER_ID,
         ...CONTRIBUTOR_USER_IDS,
         ...TRANSLATOR_USER_IDS,
-    ]),
+    ].map((id) => String(id).trim())),
 ];
 let REGIONS = {};
 
@@ -1093,7 +1093,9 @@ function renderContributors(container, users, thumbMap) {
     if (backendContributors.length > 0) {
         const backendNote = document.createElement('p');
         backendNote.className = 'rovalra-backend-contributors-note';
-        backendNote.textContent = ts('settings.credits.backendContributorsNote');
+        backendNote.textContent = ts(
+            'settings.credits.backendContributorsNote',
+        );
 
         const backendList = document.createElement('div');
         backendList.className = 'rovalra-backend-contributors-list';
@@ -1375,7 +1377,6 @@ async function loadGithubSponsorAvatar(avatar, sponsor, imageSource) {
             subdomain: 'apis',
             endpoint,
             method: 'GET',
-            noCache: true,
         });
 
         if (!response.ok)
@@ -1450,7 +1451,18 @@ function renderGithubSponsors(container, sponsors) {
 
         link.appendChild(avatar);
         grid.appendChild(link);
-        loadGithubSponsorAvatar(avatar, sponsor, imageSource);
+
+        let avatarLoaded = false;
+        const avatarObserver = observeIntersection(
+            avatar,
+            (entry) => {
+                if (!entry.isIntersecting || avatarLoaded) return;
+                avatarLoaded = true;
+                avatarObserver.unobserve();
+                loadGithubSponsorAvatar(avatar, sponsor, imageSource);
+            },
+            { rootMargin: '0px' },
+        );
     });
 
     if (grid.childElementCount > 0) container.appendChild(grid);
@@ -1948,9 +1960,7 @@ async function loadTopDonators() {
 
         if (authenticatedUserId && userTier >= 1 && toggleContainer) {
             try {
-                const settings = await getUserSettings(authenticatedUserId, {
-                    noCache: true,
-                });
+                const settings = await getUserSettings(authenticatedUserId);
 
                 const userResponse = await callRobloxApi({
                     subdomain: 'users',
