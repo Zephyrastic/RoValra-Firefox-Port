@@ -7,34 +7,20 @@ const settingDeprecations: Record<string, ((value: any, gets: (key: string) => P
 };
 
 
-import { SETTINGS_CONFIG } from "../content/core/settings/settingConfig.js";
+import { findSettingConfig, getSettingsIndex } from "../content/core/settings/settingsIndex.js";
 import { debugVerbose, flush } from "../content/core/debug.js";
 
-let compatResults: { replaced: string[]; deleted: string[] } | null = null;
+type CompatResults = { replaced: string[]; deleted: string[] };
+
+let compatResults: CompatResults | null = null;
+let compatRun: Promise<void> | null = null;
 
 const getStoredSettingValue: (s: string) => Promise<any | undefined> = async (setting: string) => {
-    const individual = await chrome.storage.local.get({
+    const stored = await chrome.storage.local.get({
         [setting]: undefined,
     });
-
-    if (individual[setting] !== undefined) {
-        return individual[setting];
-    }
-
-    const bundled = await chrome.storage.local.get({
-        rovalra_settings: {},
-    }) as { rovalra_settings?: Record<string, any>};
-
-    return bundled.rovalra_settings?.[setting];
+    return stored[setting];
 };
-
-const FLAT_SETTINGS_CONFIG: Record<string, any> = {};
-
-for (const category of Object.values(SETTINGS_CONFIG)) {
-    for (const [key, value] of Object.entries(category.settings)) {
-        FLAT_SETTINGS_CONFIG[key] = value;
-    }
-}
 
 const cleanup = (async () => {
     // Removed for data safety purposes
@@ -51,7 +37,7 @@ const cleanup = (async () => {
     //}
 });
 
-const init = (async () => {
+const runCompat = (async () => {
     console.debug("RoValra: Verifying settings compat.");
 
     let deleted = [];
@@ -62,7 +48,8 @@ const init = (async () => {
             if ((v = await getStoredSettingValue(setting)) === true) {
                 debugVerbose(`Replaced setting ${setting}.`, {replacement: String(replaceFn)});
                 if (replaceFn === undefined) {
-                    deleted.push(FLAT_SETTINGS_CONFIG[setting].label);
+                    const label = findSettingConfig(setting)?.label;
+                    if (label !== undefined) deleted.push(label);
                     
                     // // Removed for data safety purposes
                     //if (FLAT_SETTINGS_CONFIG[setting].default === true)
@@ -92,33 +79,26 @@ const init = (async () => {
         const name = data.label;
         deleted.push(name);
     };
-    for (const [category, settings] of Object.entries(SETTINGS_CONFIG)) {
-        for (const [setting, data] of Object.entries(settings.settings)) {
-            if (data['locked'] !== undefined || data['deprecated'] !== undefined) {
-                let value = await getStoredSettingValue(setting);
-                if (value !== undefined && value !== false) {
-                    debugVerbose(`Locked/deprecated setting: ${setting}`, data);
-                    forEachLockedSetting(setting, data);
+    for (const [setting, { config: data, parentName }] of getSettingsIndex().definitions) {
+        if (parentName !== null) continue;
+        if (data['locked'] === undefined && data['deprecated'] === undefined) continue;
 
-                    // // Removed for data safety purposes
-                    //if (data.default === false)
-                    //    await chrome.storage.local.remove(setting);
-                    //else
-                    //    await chrome.storage.local.set({[setting]: false});
+        let value = await getStoredSettingValue(setting);
+        if (value !== undefined && value !== false) {
+            debugVerbose(`Locked/deprecated setting: ${setting}`, data);
+            forEachLockedSetting(setting, data);
 
-                    await chrome.storage.local.set({[setting]: false});
-                }
-            }
+            // // Removed for data safety purposes
+            //if (data.default === false)
+            //    await chrome.storage.local.remove(setting);
+            //else
+            //    await chrome.storage.local.set({[setting]: false});
+
+            await chrome.storage.local.set({[setting]: false});
         }
     }
 
     compatResults = { replaced: replaced, deleted: deleted };
-
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-            chrome.tabs.sendMessage(tabs[0].id, { type: "settingsCompatResultData", replaced: replaced, deleted: deleted }, () => {});
-        }
-    });
 
     await cleanup();
     flush();
@@ -127,12 +107,16 @@ const init = (async () => {
 });
 
 chrome.runtime.onMessage.addListener((message: any, sender: unknown, sendResponse: (...args: any[]) => void) => {
-    if (message.type === "settingsCompatGetRes") {
+    if (message?.type !== "settingsCompatGetRes") return false;
+
+    (compatRun ?? Promise.resolve()).catch(() => {}).then(() => {
         debugVerbose("Recieved signal settingsCompatGetRes.", {message: message, data: compatResults});
-        sendResponse(compatResults);
-        compatResults = {replaced: [], deleted: []};
-    }
+        sendResponse(compatResults ?? { replaced: [], deleted: [] });
+        compatResults = { replaced: [], deleted: [] };
+    });
     return true;
 });
+
+const init = () => (compatRun = runCompat());
 
 export default init;

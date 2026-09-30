@@ -323,49 +323,23 @@ async function clearIncompatibleStoredValues() {
     const stored = await chrome.storage.local.get([
         IMAGE_URL_SETTING,
         LEGACY_IMAGE_SETTING,
-        'rovalra_settings',
     ]);
-    const updates = {};
     const removals = [];
-    let settingsDataChanged = false;
-    const settingsData =
-        stored.rovalra_settings && typeof stored.rovalra_settings === 'object'
-            ? { ...stored.rovalra_settings }
-            : null;
 
-    if (
-        isLegacyImageValue(stored[LEGACY_IMAGE_SETTING]) ||
-        isLegacyImageValue(settingsData?.[LEGACY_IMAGE_SETTING])
-    ) {
+    if (isLegacyImageValue(stored[LEGACY_IMAGE_SETTING])) {
         removals.push(LEGACY_IMAGE_SETTING);
-        if (settingsData) {
-            delete settingsData[LEGACY_IMAGE_SETTING];
-            settingsDataChanged = true;
-        }
     }
 
     const storedUrl = stored[IMAGE_URL_SETTING];
-    const settingsUrl = settingsData?.[IMAGE_URL_SETTING];
-    const hasInvalidStoredUrl =
+    if (
         typeof storedUrl === 'string' &&
         storedUrl.trim() &&
-        !normalizeImageUrl(storedUrl);
-    const hasInvalidSettingsUrl =
-        typeof settingsUrl === 'string' &&
-        settingsUrl.trim() &&
-        !normalizeImageUrl(settingsUrl);
-
-    if (hasInvalidStoredUrl || hasInvalidSettingsUrl) {
+        !normalizeImageUrl(storedUrl)
+    ) {
         removals.push(IMAGE_URL_SETTING);
-        if (settingsData) {
-            delete settingsData[IMAGE_URL_SETTING];
-            settingsDataChanged = true;
-        }
     }
 
-    if (settingsDataChanged) updates.rovalra_settings = settingsData;
     if (removals.length) await chrome.storage.local.remove(removals);
-    if (Object.keys(updates).length) await chrome.storage.local.set(updates);
 }
 
 function clearLogo(host) {

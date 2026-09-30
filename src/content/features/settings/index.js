@@ -17,7 +17,6 @@ import {
     initSettings,
     initializeSettingsEventListeners,
     updateConditionalSettingsVisibility,
-    buildSettingsKey,
     getCurrentUserTierSync,
     syncDonatorTier,
 } from '../../core/settings/handlesettings.js';
@@ -3024,8 +3023,6 @@ async function initializeExtension() {
             'rovalra-settings-layout-css',
         );
     }
-
-    await buildSettingsKey();
 
     addCustomButton(debouncedAddPopoverButton);
     addPopoverButton();

@@ -2,12 +2,14 @@ import { debugVerbose, flush } from "../debug";
 import { settings } from "./getSettings";
 
 chrome.runtime.sendMessage({ type: "settingsCompatGetRes" }, (message) => {
-    debugVerbose(`settingsCompatResultData recieved data.`, message);
+    debugVerbose(`settingsCompatGetRes received data.`, message);
 
-    const replaced = message.replaced;
-    const deleted = message.deleted;
-    if (!replaced || !deleted)
+    const replaced = message?.replaced;
+    const deleted = message?.deleted;
+    if (!replaced || !deleted) {
         console.error(`settingsCompatGetRes returned no data.`);
+        return;
+    }
 
     (async () => {
         if (await settings.settingChangeNote !== true)
@@ -27,7 +29,5 @@ chrome.runtime.sendMessage({ type: "settingsCompatGetRes" }, (message) => {
 
         flush();
     })();
-
-    return true; 
 });
 

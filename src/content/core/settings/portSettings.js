@@ -1,8 +1,7 @@
 import { createButton } from '../../core/ui/buttons.js';
 import { sanitizeSettings } from '../utils/sanitize.js';
-import { SETTINGS_CONFIG } from './settingConfig.js';
 import { getCurrentUserTier } from './handlesettings.js';
-import { findSettingConfig } from './generateSettings.js';
+import { findSettingConfig, getAllSettingNames } from './settingsIndex.js';
 import { showSystemAlert } from '../ui/roblox/alert.js';
 import { ts } from '../locale/i18n.js';
 
@@ -183,7 +182,7 @@ export async function importProfileNotes() {
 
 export async function exportSettings() {
     try {
-        chrome.storage.local.get('rovalra_settings', (result) => {
+        chrome.storage.local.get(getAllSettingNames(), (allSettings) => {
             if (chrome.runtime.lastError) {
                 console.error(
                     'Failed to export settings:',
@@ -195,13 +194,11 @@ export async function exportSettings() {
                 return;
             }
 
-            const allSettings = result.rovalra_settings || {};
-
             let sanitizedSettings;
             try {
                 sanitizedSettings = sanitizeSettings(
                     allSettings,
-                    SETTINGS_CONFIG,
+                    findSettingConfig,
                 );
             } catch (error) {
                 console.error('Failed to sanitize settings for export:', error);
@@ -267,7 +264,7 @@ export async function importSettings() {
                         try {
                             sanitizedSettings = sanitizeSettings(
                                 importedData.settings,
-                                SETTINGS_CONFIG,
+                                findSettingConfig,
                             );
                         } catch (error) {
                             console.error(
@@ -316,12 +313,7 @@ export async function importSettings() {
                                     ts('settings.ui.port.importError'),
                                 );
                             } else {
-                                chrome.storage.local.set(
-                                    { rovalra_settings: sanitizedSettings },
-                                    () => {
-                                        location.reload();
-                                    },
-                                );
+                                location.reload();
                             }
                         });
                     } else {

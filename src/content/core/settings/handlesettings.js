@@ -1,5 +1,10 @@
 import { SETTINGS_CONFIG } from './settingConfig.js';
-import { findSettingConfig } from './generateSettings.js';
+import {
+    findSettingConfig,
+    getAllSettingNames,
+    getDefaultSettings,
+    getSettingsIndex,
+} from './settingsIndex.js';
 import { getFullRegionName, REGIONS } from '../regions.js';
 import { sanitizeString } from '../utils/sanitize.js';
 import { callRobloxApiJson } from '../api.js';
@@ -35,9 +40,6 @@ let currentUserTier = 0;
 let gradientSyncTimeout = null;
 let gradientNameSyncTimeout = null;
 let donatorTierPromise = null;
-let inMemoryDonatorResponse = null;
-let inMemoryDonatorUserId = null;
-let settingsKeySyncQueue = Promise.resolve();
 const colorLiveSaveTimeouts = new Map();
 const FEATURE_STATUS_PROMPT_ACK_KEY = 'featureStatusPromptAcknowledged';
 const PROFILE_PRONOUNS_SETTING_NAME = 'profilePronouns';
@@ -215,14 +217,8 @@ async function restoreTextSettingInput(settingName) {
     const input = document.getElementById(settingName);
     if (!(input instanceof HTMLInputElement)) return;
 
-    const storedSettings = await chrome.storage.local.get([
-        settingName,
-        'rovalra_settings',
-    ]);
-    const storedValue =
-        storedSettings[settingName] ??
-        storedSettings.rovalra_settings?.[settingName] ??
-        '';
+    const storedSettings = await chrome.storage.local.get(settingName);
+    const storedValue = storedSettings[settingName] ?? '';
 
     input.value = typeof storedValue === 'string' ? storedValue : '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -273,9 +269,16 @@ export const getCurrentUserTier = async () => {
     return currentUserTier;
 };
 
-export const syncDonatorTier = async ({ force = false } = {}) => {
+export const syncDonatorTier = ({ force = false } = {}) => {
     if (donatorTierPromise) return donatorTierPromise;
 
+    donatorTierPromise = runDonatorTierSync(force).finally(() => {
+        donatorTierPromise = null;
+    });
+    return donatorTierPromise;
+};
+
+async function runDonatorTierSync(force) {
     const now = Date.now();
     const currentHref = window.location.href;
     const currentPath = window.location.pathname;
@@ -284,11 +287,6 @@ export const syncDonatorTier = async ({ force = false } = {}) => {
 
     if (!currentUserId) {
         return null;
-    }
-
-    if (inMemoryDonatorUserId !== currentUserId) {
-        inMemoryDonatorUserId = currentUserId;
-        inMemoryDonatorResponse = null;
     }
 
     const state = (await CacheHandler.get(
@@ -327,122 +325,83 @@ export const syncDonatorTier = async ({ force = false } = {}) => {
         state.priorityActive && isUrlChange && state.checksLeft > 0;
     const isExpired = now - state.lastSync > 5 * 60 * 1000;
 
-    if (!force && !isPriorityCheck && !isExpired) {
-        const cachedResponse =
-            inMemoryDonatorResponse || state.cachedResponse || null;
-        if (cachedResponse) {
-            inMemoryDonatorResponse = cachedResponse;
-            currentUserTierLoaded = true;
-            return cachedResponse;
-        }
+    if (!force && !isPriorityCheck && !isExpired && state.cachedResponse) {
+        currentUserTierLoaded = true;
+        return state.cachedResponse;
     }
 
-    donatorTierPromise = (async () => {
-        try {
-            const response = await callRobloxApiJson({
-                isRovalraApi: true,
-                subdomain: 'apis',
-                endpoint: '/v1/auth/badges',
-                method: 'GET',
-            });
+    try {
+        const response = await callRobloxApiJson({
+            isRovalraApi: true,
+            subdomain: 'apis',
+            endpoint: '/v1/auth/badges',
+            method: 'GET',
+        });
 
-            if (!response?.badges) {
-                return inMemoryDonatorResponse || null;
-            }
+        if (!response?.badges) {
+            return state.cachedResponse || null;
+        }
 
-            const badges = response.badges;
-            let tier = 0;
-            if (badges.donator_3 || badges.legacy_donator) {
-                tier = 3;
-            } else if (badges.donator_2) {
-                tier = 2;
-            } else if (badges.donator_1) {
-                tier = 1;
-            }
+        const badges = response.badges;
+        let tier = 0;
+        if (badges.donator_3 || badges.legacy_donator) {
+            tier = 3;
+        } else if (badges.donator_2) {
+            tier = 2;
+        } else if (badges.donator_1) {
+            tier = 1;
+        }
 
-            if (state.priorityActive && isUrlChange) {
-                if (tier !== state.lastTier) {
+        if (state.priorityActive && isUrlChange) {
+            if (tier !== state.lastTier) {
+                state.priorityActive = false;
+                state.checksLeft = 0;
+            } else {
+                state.checksLeft--;
+                if (state.checksLeft <= 0) {
                     state.priorityActive = false;
-                    state.checksLeft = 0;
-                } else {
-                    state.checksLeft--;
-                    if (state.checksLeft <= 0) {
-                        state.priorityActive = false;
-                    }
                 }
             }
-
-            currentUserTier = tier;
-            state.lastTier = tier;
-            state.lastSync = Date.now();
-            state.lastPath = currentPath;
-            inMemoryDonatorResponse = response;
-            state.userId = currentUserId;
-            state.cachedResponse = response;
-
-            await CacheHandler.set(
-                'donator_info',
-                'sync_state',
-                state,
-                'local',
-            );
-
-            const settingsContent = document.querySelector(
-                '#setting-section-content',
-            );
-            if (settingsContent) {
-                const settings = await loadSettings();
-                await checkSettingLocks(settingsContent, settings);
-            }
-
-            currentUserTierLoaded = true;
-
-            return response;
-        } catch (error) {
-            console.error('RoValra: Failed to sync donator tier.', {
-                userId: currentUserId,
-                endpoint: '/v1/auth/badges',
-                method: 'GET',
-                error: error.message || error,
-                stack: error.stack,
-            });
-            return inMemoryDonatorResponse || null;
-        } finally {
-            donatorTierPromise = null;
         }
-    })();
 
-    return donatorTierPromise;
-};
+        currentUserTier = tier;
+        state.lastTier = tier;
+        state.lastSync = Date.now();
+        state.lastPath = currentPath;
+        state.userId = currentUserId;
+        state.cachedResponse = response;
+
+        await CacheHandler.set('donator_info', 'sync_state', state, 'local');
+
+        const settingsContent = document.querySelector(
+            '#setting-section-content',
+        );
+        if (settingsContent) {
+            const settings = await loadSettings();
+            await checkSettingLocks(settingsContent, settings);
+        }
+
+        currentUserTierLoaded = true;
+
+        return response;
+    } catch (error) {
+        console.error('RoValra: Failed to sync donator tier.', {
+            userId: currentUserId,
+            endpoint: '/v1/auth/badges',
+            method: 'GET',
+            error: error.message || error,
+            stack: error.stack,
+        });
+        return state.cachedResponse || null;
+    }
+}
 
 export const loadSettings = async () => {
     return new Promise((resolve, reject) => {
-        const defaultSettings = {};
+        const defaultSettings = getDefaultSettings();
         const forcedSettings = {};
-        for (const category of Object.values(SETTINGS_CONFIG)) {
-            for (const [settingName, settingDef] of Object.entries(
-                category.settings,
-            )) {
-                if (settingDef.default !== undefined) {
-                    defaultSettings[settingName] = settingDef.default;
-                }
-                if (isUnavailableSetting(settingDef)) {
-                    forcedSettings[settingName] = false;
-                }
-                if (settingDef.childSettings) {
-                    for (const [childName, childSettingDef] of Object.entries(
-                        settingDef.childSettings,
-                    )) {
-                        if (isUnavailableSetting(childSettingDef)) {
-                            forcedSettings[childName] = false;
-                        }
-                        if (childSettingDef.default !== undefined) {
-                            defaultSettings[childName] =
-                                childSettingDef.default;
-                        }
-                    }
-                }
-            }
+        for (const [name, { config }] of getSettingsIndex().definitions) {
+            if (isUnavailableSetting(config)) forcedSettings[name] = false;
         }
 
         chrome.storage.local.get(
@@ -482,110 +441,43 @@ export const loadSettings = async () => {
 export const enforceSettingOverrides = async () => {
     try {
         const settings = await loadSettings();
-        const settingNames = [];
-        for (const category of Object.values(SETTINGS_CONFIG)) {
-            for (const [settingName, config] of Object.entries(
-                category.settings,
-            )) {
-                settingNames.push(settingName);
-                if (config.childSettings) {
-                    settingNames.push(...Object.keys(config.childSettings));
-                }
-            }
-        }
         const storedSettings = await chrome.storage.local.get([
-            ...settingNames,
-            'rovalra_settings',
-        ]);
-        const bundledSettings = storedSettings.rovalra_settings || {};
-        const getStoredSetting = (name) =>
-            Object.prototype.hasOwnProperty.call(storedSettings, name)
-                ? storedSettings[name]
-                : bundledSettings[name];
-        const data = await chrome.storage.local.get([
+            ...getAllSettingNames(),
             'profile3DRenderForceDisabled',
         ]);
-        const userTier = currentUserTier;
         const overrides = {};
 
         const is3DLocked =
-            data.profile3DRenderForceDisabled === true &&
+            storedSettings.profile3DRenderForceDisabled === true &&
             !settings.profile3DRenderBypassCheck;
         if (is3DLocked && settings.profile3DRenderEnabled === true) {
             overrides.profile3DRenderEnabled = false;
         }
 
-        for (const category of Object.values(SETTINGS_CONFIG)) {
-            for (const [settingName, config] of Object.entries(
-                category.settings,
-            )) {
-                const processSetting = (name, conf) => {
-                    /*if (conf.donatorTier) {
-                        const isLocked = userTier < conf.donatorTier;
-                        if (isLocked && settings[name] === true) {
-                            overrides[name] = false;
-                        }
-                        }*/ // Broken as it would always turn checkboxes off
-                    if (
-                        (conf.locked || conf.deprecated) &&
-                        getStoredSetting(name) === true
-                    ) {
-                        overrides[name] = false;
-                    }
-                };
-
-                processSetting(settingName, config);
-
-                if (config.childSettings) {
-                    for (const [childName, childConfig] of Object.entries(
-                        config.childSettings,
-                    )) {
-                        processSetting(childName, childConfig);
-                    }
-                }
+        for (const [name, { config }] of getSettingsIndex().definitions) {
+            if (
+                (config.locked || config.deprecated) &&
+                storedSettings[name] === true
+            ) {
+                overrides[name] = false;
             }
         }
 
         const overrideKeys = Object.keys(overrides);
-        if (overrideKeys.length > 0) {
-            console.log(
-                `RoValra: Enforcing ${overrideKeys.length} setting override(s) at startup:`,
-                overrideKeys,
+        if (overrideKeys.length === 0) return;
+
+        console.log(
+            `RoValra: Enforcing ${overrideKeys.length} setting override(s) at startup:`,
+            overrideKeys,
+        );
+
+        try {
+            await chrome.storage.local.set(overrides);
+        } catch (error) {
+            console.error(
+                'RoValra: Failed to enforce setting overrides',
+                error,
             );
-
-            return new Promise((resolve) => {
-                chrome.storage.local.set(overrides, () => {
-                    if (chrome.runtime.lastError) {
-                        console.error(
-                            'RoValra: Failed to enforce setting overrides',
-                            chrome.runtime.lastError,
-                        );
-                        resolve();
-                        return;
-                    }
-
-                    chrome.storage.local.get('rovalra_settings', (result) => {
-                        const settingsData = result.rovalra_settings || {};
-                        let changed = false;
-                        for (const [key, value] of Object.entries(overrides)) {
-                            if (settingsData[key] !== value) {
-                                settingsData[key] = value;
-                                changed = true;
-                            }
-                        }
-                        if (changed) {
-                            chrome.storage.local.set(
-                                { rovalra_settings: settingsData },
-                                () => {
-                                    resolve();
-                                },
-                            );
-                        } else {
-                            resolve();
-                        }
-                    });
-                });
-            });
         }
     } catch (error) {
         console.error('RoValra: Failed to enforce setting overrides:', error);
@@ -862,7 +754,6 @@ export const handleSaveSettings = async (settingName, value) => {
                             ),
                         );
                     }
-                    syncToSettingsKey(settingName, sanitizedValue);
                     if (
                         settingName === REMOTE_SETTING_OVERRIDE_KEY &&
                         sanitizedValue === true
@@ -947,74 +838,6 @@ export const handleSaveSettings = async (settingName, value) => {
         console.error(`Error saving setting ${settingName}:`, error);
         return Promise.reject(error);
     }
-};
-
-const syncToSettingsKey = (settingName, value) => {
-    settingsKeySyncQueue = settingsKeySyncQueue
-        .catch(() => {})
-        .then(
-            () =>
-                new Promise((resolve, reject) => {
-                    chrome.storage.local.get('rovalra_settings', (result) => {
-                        if (chrome.runtime.lastError) {
-                            reject(chrome.runtime.lastError);
-                            return;
-                        }
-
-                        const settingsData = result.rovalra_settings || {};
-                        settingsData[settingName] = value;
-                        chrome.storage.local.set(
-                            { rovalra_settings: settingsData },
-                            () => {
-                                if (chrome.runtime.lastError) {
-                                    reject(chrome.runtime.lastError);
-                                } else {
-                                    resolve();
-                                }
-                            },
-                        );
-                    });
-                }),
-        );
-
-    return settingsKeySyncQueue;
-};
-
-export const buildSettingsKey = async () => {
-    return new Promise((resolve) => {
-        const allSettingKeys = [];
-        for (const category of Object.values(SETTINGS_CONFIG)) {
-            for (const [settingName, settingDef] of Object.entries(
-                category.settings,
-            )) {
-                allSettingKeys.push(settingName);
-                if (settingDef.childSettings) {
-                    for (const childName of Object.keys(
-                        settingDef.childSettings,
-                    )) {
-                        allSettingKeys.push(childName);
-                    }
-                }
-            }
-        }
-
-        chrome.storage.local.get(allSettingKeys, (currentSettings) => {
-            chrome.storage.local.set(
-                { rovalra_settings: currentSettings },
-                () => {
-                    if (chrome.runtime.lastError) {
-                        console.error(
-                            'Failed to build settings key:',
-                            chrome.runtime.lastError,
-                        );
-                    } else {
-                        console.log('RoValra: Settings key initialized');
-                    }
-                    resolve();
-                },
-            );
-        });
-    });
 };
 
 export const initSettings = async (settingsContent) => {
@@ -2289,13 +2112,6 @@ export function initializeSettingsEventListeners() {
                     );
                     await checkSettingLocks(settingsContent, currentSettings);
                     updateAllPermissionToggles();
-
-                    if (settingName === 'MemoryleakFixEnabled') {
-                        chrome.runtime.sendMessage({
-                            action: 'toggleMemoryLeakFix',
-                            enabled: currentSettings.MemoryleakFixEnabled,
-                        });
-                    }
                 }
             })
             .catch((error) => {

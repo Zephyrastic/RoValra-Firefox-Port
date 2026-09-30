@@ -1,4 +1,4 @@
-import { SETTINGS_CONFIG } from '../content/core/settings/settingConfig.js';
+import { getDefaultSettings } from '../content/core/settings/settingsIndex.js';
 import init from './settingsCompat.ts';
 import { updateGameBookmarks } from './gameBookmarks.js';
 import { initializeTelemetryBlocker } from './telemetryBlocker.js';
@@ -21,7 +21,6 @@ initializeTelemetryBlocker();
 // --- Constants & State ---
 
 const state = {
-    isMemoryFixEnabled: false,
     programmaticallyNavigatedUrls: new Set(),
     currentUserId: null,
     latestPresence: null,
@@ -52,34 +51,14 @@ if (chrome.storage.session && chrome.storage.session.setAccessLevel) {
 
 // --- Settings Management ---
 
-function getDefaultSettings() {
-    const defaults = {};
-    for (const category of Object.values(SETTINGS_CONFIG)) {
-        for (const [settingName, settingDef] of Object.entries(
-            category.settings,
-        )) {
-            if (settingDef.default !== undefined) {
-                defaults[settingName] = settingDef.default;
-            }
-            if (settingDef.childSettings) {
-                for (const [childName, childSettingDef] of Object.entries(
-                    settingDef.childSettings,
-                )) {
-                    if (childSettingDef.default !== undefined) {
-                        defaults[childName] = childSettingDef.default;
-                    }
-                }
-            }
-        }
-    }
-    return defaults;
-}
+const LEGACY_SETTINGS_BUNDLE_KEY = 'rovalra_settings';
 
 function initializeSettings(reason) {
     const defaults = getDefaultSettings();
 
-    chrome.storage.local.get(null, async (currentSettings) => {
+    chrome.storage.local.get(Object.keys(defaults), async (currentSettings) => {
         await init();
+        chrome.storage.local.remove(LEGACY_SETTINGS_BUNDLE_KEY);
         const settingsToUpdate = {};
         let needsUpdate = false;
 
@@ -242,20 +221,29 @@ const handleMemoryLeakNavigation = (details) => {
     });
 };
 
-const navigationListener = (details) => {
-    if (state.isMemoryFixEnabled) {
-        handleMemoryLeakNavigation(details);
-    }
-};
+const navigationListener = handleMemoryLeakNavigation;
 
 async function setupNavigationListener() {
+    const { MemoryleakFixEnabled } = await chrome.storage.local.get({
+        MemoryleakFixEnabled: false,
+    });
     const hasRequiredPermissions = await chrome.permissions.contains({
         permissions: ['webNavigation'],
     });
-    if (
+    const hasListener =
         hasRequiredPermissions &&
-        !chrome.webNavigation.onBeforeNavigate.hasListener(navigationListener)
-    ) {
+        chrome.webNavigation.onBeforeNavigate.hasListener(navigationListener);
+
+    if (!MemoryleakFixEnabled) {
+        if (hasListener) {
+            chrome.webNavigation.onBeforeNavigate.removeListener(
+                navigationListener,
+            );
+        }
+        return;
+    }
+
+    if (hasRequiredPermissions && !hasListener) {
         const navigationFilter = {
             url: [{ hostContains: '.roblox.com' }],
             urlExcludes: ['roblox-player:*'],
@@ -1892,10 +1880,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local') {
-        if (changes.MemoryleakFixEnabled) {
-            state.isMemoryFixEnabled = changes.MemoryleakFixEnabled.newValue;
-            if (state.isMemoryFixEnabled) setupNavigationListener();
-        }
+        if (changes.MemoryleakFixEnabled) setupNavigationListener();
         if (
             changes.rovalra_avatar_rotator_enabled ||
             changes.rovalra_avatar_rotator_ids ||
@@ -1987,8 +1972,8 @@ chrome.permissions.onRemoved.addListener((permissions) => {
 // content has a matching case here. Background -> content messages
 // (copyToClipboard, view-ids, presenceUpdate, permissionsUpdated) are handled
 // by listeners in their respective feature modules. The settings-compat
-// channel (settingsCompatGetRes/settingsCompatResultData) uses `type` and is
-// handled in settingsCompat.ts, not here.
+// channel (settingsCompatGetRes) uses `type` and is handled in
+// settingsCompat.ts, not here.
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     switch (request.action) {
         case 'updateGameBookmarks':
@@ -2066,11 +2051,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     sendResponse({ success: false, error: err.message }),
                 );
             return true;
-
-        case 'toggleMemoryLeakFix':
-            state.isMemoryFixEnabled = request.enabled;
-            sendResponse({ success: true });
-            return false;
 
         case 'checkPermission':
             chrome.permissions.contains(
@@ -2357,12 +2337,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // --- Initialization ---
 
-chrome.storage.local.get('MemoryleakFixEnabled', (result) => {
-    if (result.MemoryleakFixEnabled) {
-        state.isMemoryFixEnabled = true;
-        setupNavigationListener();
-    }
-});
+setupNavigationListener();
 
 updateUserAgentRule();
 updateAvatarRotator();

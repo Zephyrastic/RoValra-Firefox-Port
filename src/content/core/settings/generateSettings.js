@@ -413,33 +413,12 @@ function createImageUrlPreview(inputElement, settingName) {
 
     previewWrapper.append(title, divider, image);
 
-    chrome.storage.local.get([settingName, 'rovalra_settings'], (result) => {
-        updatePreview(
-            result[settingName] ?? result.rovalra_settings?.[settingName] ?? '',
-        );
+    chrome.storage.local.get(settingName, (result) => {
+        updatePreview(result[settingName] ?? '');
     });
     requestAnimationFrame(() => updatePreview(inputElement.value || ''));
 
     return previewWrapper;
-}
-
-export function findSettingConfig(settingName) {
-    for (const category of Object.values(SETTINGS_CONFIG)) {
-        for (const [parentSettingName, parentSettingDef] of Object.entries(
-            category.settings,
-        )) {
-            if (parentSettingName === settingName) {
-                return parentSettingDef;
-            }
-            if (
-                parentSettingDef.childSettings &&
-                parentSettingDef.childSettings[settingName]
-            ) {
-                return parentSettingDef.childSettings[settingName];
-            }
-        }
-    }
-    return null;
 }
 
 export function generateSettingInput(settingName, setting, REGIONS = {}) {

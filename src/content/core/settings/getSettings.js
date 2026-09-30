@@ -1,41 +1,50 @@
 import { loadSettings } from './handlesettings.js';
-import { REMOTE_SETTING_LOCKS_KEY } from './remoteSettingLocks.js';
+import {
+    REMOTE_SETTING_LOCKS_KEY,
+    REMOTE_SETTING_OVERRIDE_KEY,
+} from './remoteSettingLocks.js';
+import { isKnownSettingName } from './settingsIndex.js';
+import { PROFILE_PRONOUNS_BY_USER_STORAGE_KEY } from '../profile/pronouns.js';
 
-let settingsCache = undefined;
+let settingsPromise = null;
 
-function updateCachedSetting(name, value) {
-    if (settingsCache === undefined || !name) return;
-    settingsCache[name] = value;
+function invalidateSettings() {
+    settingsPromise = null;
 }
 
 if (typeof document !== 'undefined') {
-    document.addEventListener('rovalra:settingSaved', (event) => {
-        updateCachedSetting(event.detail?.name, event.detail?.value);
-    });
+    document.addEventListener('rovalra:settingSaved', invalidateSettings);
 }
 
 if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName !== 'local' || settingsCache === undefined) return;
+        if (areaName !== 'local' || settingsPromise === null) return;
 
-        if (changes[REMOTE_SETTING_LOCKS_KEY]) {
-            settingsCache = undefined;
-            return;
-        }
-
-        for (const [name, change] of Object.entries(changes)) {
-            if (name === 'rovalra_settings') continue;
-            updateCachedSetting(name, change.newValue);
-        }
+        const affectsSettings = Object.keys(changes).some(
+            (name) =>
+                name === REMOTE_SETTING_LOCKS_KEY ||
+                name === REMOTE_SETTING_OVERRIDE_KEY ||
+                name === PROFILE_PRONOUNS_BY_USER_STORAGE_KEY ||
+                isKnownSettingName(name),
+        );
+        if (affectsSettings) invalidateSettings();
     });
 }
 
-// Loads settings once per content-script runtime and reuses the same object for
+// Loads settings once per content-script runtime and reuses the same result for
 // every `await settings.someSetting` call. This avoids asking chrome.storage for
-// the full settings object every time a feature needs one value.
-async function getCachedSettings() {
-    if (settingsCache === undefined) settingsCache = await loadSettings();
-    return settingsCache;
+// the full settings object every time a feature needs one value. The cache is
+// only ever dropped and recomputed by loadSettings, never patched key by key, so
+// it cannot drift from what loadSettings derives (defaults, forced-off settings).
+function getCachedSettings() {
+    if (settingsPromise === null) {
+        const pending = loadSettings().catch((error) => {
+            if (settingsPromise === pending) settingsPromise = null;
+            throw error;
+        });
+        settingsPromise = pending;
+    }
+    return settingsPromise;
 }
 // bunch of dark magic  - Bogdan
 

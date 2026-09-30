@@ -117,29 +117,16 @@ export function sanitizeObject(obj) {
 }
 
 
-export function sanitizeSettings(settings, SETTINGS_CONFIG = null) {
+export function sanitizeSettings(settings, findSettingConfig = null) {
     if (!settings || typeof settings !== 'object') {
         throw new Error('Invalid settings format');
     }
 
     const sanitized = {};
 
-    if (SETTINGS_CONFIG) {
+    if (findSettingConfig) {
         for (const [key, value] of Object.entries(settings)) {
-            let settingDef = null;
-            for (const category of Object.values(SETTINGS_CONFIG)) {
-                for (const [settingName, def] of Object.entries(category.settings)) {
-                    if (settingName === key) {
-                        settingDef = def;
-                        break;
-                    }
-                    if (def.childSettings && def.childSettings[key]) {
-                        settingDef = def.childSettings[key];
-                        break;
-                    }
-                }
-                if (settingDef) break;
-            }
+            const settingDef = findSettingConfig(key);
 
             if (!settingDef) {
                 console.warn(`Sanitizing: Unknown setting '${key}' - skipping`);

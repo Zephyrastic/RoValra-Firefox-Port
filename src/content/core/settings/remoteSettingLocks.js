@@ -96,33 +96,23 @@ export const refreshRemoteSettingLocks = async () => {
     const disabledKeys = await getRemoteDisabledKeys();
     const allowRemoteOverrides = await isRemoteSettingOverrideEnabled();
     const disabledKeySet = new Set(disabledKeys);
-    const storage = await getStorage(null);
+    const storage = await getStorage([REMOTE_SETTING_LOCKS_KEY, ...disabledKeys]);
     const currentLocks =
         storage[REMOTE_SETTING_LOCKS_KEY] &&
         typeof storage[REMOTE_SETTING_LOCKS_KEY] === 'object' &&
         !Array.isArray(storage[REMOTE_SETTING_LOCKS_KEY])
             ? storage[REMOTE_SETTING_LOCKS_KEY]
             : {};
-    const bundledSettings =
-        storage.rovalra_settings &&
-        typeof storage.rovalra_settings === 'object' &&
-        !Array.isArray(storage.rovalra_settings)
-            ? { ...storage.rovalra_settings }
-            : {};
 
     const nextLocks = {};
     const updates = {};
     const removals = [];
-    let bundledChanged = false;
 
     for (const key of disabledKeys) {
         const existingLock = currentLocks[key];
-        const currentValue = Object.prototype.hasOwnProperty.call(storage, key)
-            ? storage[key]
-            : bundledSettings[key];
 
         nextLocks[key] = existingLock || {
-            previousValue: currentValue,
+            previousValue: storage[key],
             lockedAt: Date.now(),
             reason: REMOTE_SETTING_LOCK_REASON,
         };
@@ -136,51 +126,26 @@ export const refreshRemoteSettingLocks = async () => {
                 nextLocks[key].previousValue !== undefined
             ) {
                 updates[key] = nextLocks[key].previousValue;
-                if (bundledSettings[key] !== nextLocks[key].previousValue) {
-                    bundledSettings[key] = nextLocks[key].previousValue;
-                    bundledChanged = true;
-                }
             }
-        } else {
-            if (storage[key] !== false) updates[key] = false;
-
-            if (bundledSettings[key] !== false) {
-                bundledSettings[key] = false;
-                bundledChanged = true;
-            }
+        } else if (storage[key] !== false) {
+            updates[key] = false;
         }
     }
 
     for (const [key, lock] of Object.entries(currentLocks)) {
         if (disabledKeySet.has(key)) continue;
 
-        if (Object.prototype.hasOwnProperty.call(lock, 'previousValue')) {
-            if (lock.previousValue === undefined) {
-                removals.push(key);
-                if (
-                    Object.prototype.hasOwnProperty.call(bundledSettings, key)
-                ) {
-                    delete bundledSettings[key];
-                    bundledChanged = true;
-                }
-            } else {
-                updates[key] = lock.previousValue;
-                if (bundledSettings[key] !== lock.previousValue) {
-                    bundledSettings[key] = lock.previousValue;
-                    bundledChanged = true;
-                }
-            }
+        if (
+            Object.prototype.hasOwnProperty.call(lock, 'previousValue') &&
+            lock.previousValue !== undefined
+        ) {
+            updates[key] = lock.previousValue;
         } else {
             removals.push(key);
-            if (Object.prototype.hasOwnProperty.call(bundledSettings, key)) {
-                delete bundledSettings[key];
-                bundledChanged = true;
-            }
         }
     }
 
     updates[REMOTE_SETTING_LOCKS_KEY] = nextLocks;
-    if (bundledChanged) updates.rovalra_settings = bundledSettings;
 
     await setStorage(updates);
     if (removals.length > 0) {
