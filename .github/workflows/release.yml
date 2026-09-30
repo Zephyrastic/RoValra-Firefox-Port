@@ -1,0 +1,97 @@
+name: Build and Release Extension
+
+on:
+    push:
+        tags:
+            - 'v*'
+    workflow_dispatch:
+
+jobs:
+    build-and-package:
+        permissions:
+            contents: write
+
+        runs-on: ubuntu-latest
+
+        env:
+            # Step-level `if` cannot read the secrets context, so mirror the
+            # secret presences into env flags and skip the optional steps on
+            # forks/clones that have no secrets configured. The Chrome Web
+            # Store upload needs all four of its secrets; AMO signing needs
+            # both API credentials.
+            HAS_CWS: ${{ secrets.EXTENSION_ID != '' && secrets.CLIENT_ID != '' && secrets.CLIENT_SECRET != '' && secrets.REFRESH_TOKEN != '' }}
+            HAS_AMO: ${{ secrets.AMO_API_KEY != '' && secrets.AMO_API_SECRET != '' }}
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build extension
+              run: npm run build
+
+            - name: Build Firefox extension
+              run: npm run build:firefox
+
+            - name: Lint Firefox build
+              run: npm run lint:firefox
+
+            - name: Package extension
+              run: |
+                  cd dist
+                  zip -r ../rovalra-${{ github.ref_name }}.zip .
+
+            - name: Package Firefox extension
+              run: |
+                  cd dist-firefox
+                  zip -r ../rovalra-${{ github.ref_name }}-firefox.zip .
+
+            - name: Sign Firefox extension with AMO (unlisted)
+              if: env.HAS_AMO == 'true'
+              run: |
+                  npx web-ext sign \
+                    --api-key="$AMO_API_KEY" \
+                    --api-secret="$AMO_API_SECRET" \
+                    --channel=unlisted \
+                    --source-dir=dist-firefox \
+                    --artifacts-dir=amo-signed
+              env:
+                  AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
+                  AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  # amo-signed/*.xpi only exists once the AMO secrets are
+                  # configured, so tolerate unmatched files.
+                  failOnUnmatchedFiles: false
+                  files: |
+                      rovalra-${{ github.ref_name }}.zip
+                      rovalra-${{ github.ref_name }}-firefox.zip
+                      amo-signed/*.xpi
+                  # Auto-generate release notes from the commits/PRs since the
+                  # previous release, so every tagged version ships with a body.
+                  generate_release_notes: true
+              env:
+                  # ACCESS_TOKEN is optional; fall back to the workflow's own
+                  # token (the job has contents: write) so releases work on
+                  # repositories without that secret.
+                  GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN || github.token }}
+
+            - name: Upload to Chrome Web Store
+              if: env.HAS_CWS == 'true'
+              uses: mnao305/chrome-extension-upload@v6.0.0
+              with:
+                  file-path: rovalra-${{ github.ref_name }}.zip
+                  extension-id: ${{ secrets.EXTENSION_ID }}
+                  client-id: ${{ secrets.CLIENT_ID }}
+                  client-secret: ${{ secrets.CLIENT_SECRET }}
+                  refresh-token: ${{ secrets.REFRESH_TOKEN }}
