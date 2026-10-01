@@ -25,7 +25,6 @@ import {
     fetchServerUptime,
     displayUptime,
     displayPlaceVersion,
-    displayLanguageMatch,
     displayRegion,
     displayServerFullStatus,
     displayPrivateServerStatus,
@@ -117,7 +116,6 @@ const SHARED_STYLES = `
         min-width: 110px !important;
     }
     .rovalra-modern-ui .rovalra-version-info { order: 5 !important; }
-    .rovalra-modern-ui .rovalra-language-match-info { order: 6 !important; }
 
     .rovalra-modern-ui .rovalra-region-info {
         order: 10 !important;
@@ -1360,11 +1358,6 @@ try {
                                 );
                             } catch (e) {}
                         }
-
-                        displayLanguageMatch(
-                            serverElement,
-                            serverData.languageMatchCount,
-                        ).catch(() => {});
 
                         const placeVersion =
                             serverData.placeVersion ?? serverData.place_version;

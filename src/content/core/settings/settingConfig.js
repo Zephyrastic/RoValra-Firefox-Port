@@ -171,6 +171,26 @@ export const SETTINGS_CONFIG = {
                 type: 'checkbox',
                 default: true,
             },
+            recentlyViewedEnabled: {
+                label: 'Recently Viewed Items',
+                description: [
+                    'Adds a Recently Viewed row to the top of the Marketplace with the last items and bundles you opened.',
+                    'Items can be removed one by one or all at once. Your history is only stored on this device.',
+                ],
+                type: 'checkbox',
+                default: true,
+                storageKey: 'rovalra_recently_viewed',
+                contributors: ['2239549101'],
+                childSettings: {
+                    recentlyViewedPriceChanges: {
+                        label: 'Show Price Changes',
+                        description:
+                            'Shows if an item got cheaper, more expensive, went off sale or came back on sale since you viewed it.',
+                        type: 'checkbox',
+                        default: true,
+                    },
+                },
+            },
             bonusItemEnabled: {
                 label: 'Robux Purchase Bonus Item Selector',
                 description:
@@ -676,14 +696,6 @@ export const SETTINGS_CONFIG = {
                         label: 'Server Version',
                         description: [
                             'This shows the version of the experience that a specific server is running.',
-                        ],
-                        type: 'checkbox',
-                        default: true,
-                    },
-                    EnableServerLanguageMatch: {
-                        label: 'Server Language Match',
-                        description: [
-                            'Shows how many players in each server speak your language.',
                         ],
                         type: 'checkbox',
                         default: true,
