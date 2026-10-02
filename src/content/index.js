@@ -28,6 +28,7 @@ import { init as initPrivateGames } from './features/games/privateGames.js';
 import { init as initGamePassViewer } from './features/games/gamePassViewer.js';
 import { init as initCopyId } from './features/sitewide/copyid.js';
 import { init as initDevPanel } from './features/dev/devPanel.js';
+import { init as initRichRobloxLinks } from './features/sitewide/richRobloxLinks.js';
 import { init as initViewIds } from './features/sitewide/viewid.js';
 import { init as initQuickSearch } from './features/navigation/search/quicksearch.js';
 import { init as initRenderTest } from './features/developer/rendertest.js';
@@ -119,6 +120,8 @@ import { init as initTradeSearch } from './features/trading/tradeSearch.js';
 import { init as initTradeProof } from './features/trading/tradeProof.js';
 import { init as initBlockUser } from './features/trading/blockUser.js';
 import { init as initSendTrade } from './features/trading/sendTrade.js';
+import { init as initRecentTradeItems } from './features/trading/recentTradeItems.js';
+import { init as initTradeQuickActions } from './features/trading/tradeQuickActions.js';
 // group
 import { init as initHiddenGroupGames } from './features/groups/hiddenGroupGames.js';
 import { init as initAntiBots } from './features/groups/Antibots.js';
@@ -246,6 +249,7 @@ const featureRoutes = [
             initPlaytimeTracker,
             initCopyId,
             initDevPanel,
+            initRichRobloxLinks,
             initViewIds,
             initBetaPrograms,
             initPreviousPrice,
@@ -492,6 +496,8 @@ const featureRoutes = [
             initTradeProof,
             initBlockUser,
             initSendTrade,
+            initRecentTradeItems,
+            initTradeQuickActions,
         ],
     },
 

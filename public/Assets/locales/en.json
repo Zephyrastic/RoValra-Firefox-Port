@@ -890,7 +890,8 @@
                     "madeRo": "Helped make the Romanian locale",
                     "madeEs": "Helped make the Spanish locale",
                     "madeRu": "Helped make the Russian locale",
-                    "madeFr": "Helped make the French locale"
+                    "madeFr": "Helped make the French locale",
+                    "madeZh": "Helped make the Chinese locale"
                 }
             },
             "ui": {
@@ -1749,6 +1750,27 @@
         "offSale": "Went off sale",
         "backOnSale": "Back on sale"
     },
+    "tradeRecentItems": {
+        "offer": "Recently offered",
+        "request": "Recently requested",
+        "clear": "Clear"
+    },
+    "tradeQuickActions": {
+        "minValue": "Min value they give",
+        "hideLosses": "Hide losses",
+        "bulkTitle": "Bulk action",
+        "bulkHint": "Declines every received trade where you lose value. You confirm first.",
+        "declineLosses": "Decline losing trades",
+        "loadingTrades": "Loading received trades...",
+        "checking": "Checking trades {{done}}/{{total}}...",
+        "noLosses": "No losing received trades found",
+        "confirmTitle": "Decline losing trades",
+        "confirmMessage": "{{count}} of your {{total}} received trades are a loss by value ({{value}} total). Decline all of them? This can't be undone.",
+        "declineConfirm": "Decline",
+        "declining": "Declining {{done}}/{{total}}...",
+        "declined": "Declined {{count}} trades",
+        "declinedWithFailures": "Declined {{count}} trades, {{failed}} failed"
+    },
     "time": {
         "justNow": "just now",
         "secondsAgo": "{{count}}s ago",
@@ -2044,7 +2066,8 @@
         "renderOptions": "Render Options",
         "darkLighting": "Dark Lighting",
         "baseplate": "Baseplate",
-        "rotatePreview": "Rotate preview"
+        "rotatePreview": "Rotate preview",
+        "itemOnly": "Show item only"
     },
     "groupFilters": {
         "sort": {
@@ -2152,6 +2175,15 @@
             }
         }
     },
+    "settingsCompat-settingChangeNote": {
+        "ui": {
+            "popup": {
+                "title": "Some settings were removed/replaced"
+            },
+            "deleted": "The following settings have been recently deleted, locked or deprecated:",
+            "replaced": "The following settings have been recently replaced or changed:"
+        }
+    },
     "avatar": {
         "gameOutfits": {
             "button": "Game Outfits",
@@ -2173,5 +2205,14 @@
     "pinnedFriends": {
         "pin": "Pin to top",
         "unpin": "Unpin"
+    },
+    "richLinks": {
+        "by": "By {{name}}",
+        "members": "{{count}} Members",
+        "playing": "{{count}} Playing",
+        "visits": "{{count}} Visits",
+        "loading": "Loading...",
+        "free": "Free",
+        "offSale": "Off sale"
     }
 }
