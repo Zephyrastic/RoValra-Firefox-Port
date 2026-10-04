@@ -2052,6 +2052,8 @@ export const SETTINGS_CONFIG = {
                     'Shows how much Robux you have left before the daily and monthly Roblox Plus transfer limits on the [Plus](https://www.roblox.com/plus) page.',
                 type: 'checkbox',
                 default: true,
+                storageKey: 'rovalra_robux_transfer_limits_v1',
+                contributors: ['48255812', '447170745'],
             },
             plusReferralEnabled: {
                 label: 'Show RoValra Plus Referral',
@@ -3344,6 +3346,24 @@ export const SETTINGS_CONFIG = {
                 ],
                 type: 'checkbox',
                 default: false,
+            },
+            privateApiDocsEnabled: {
+                label: ['Private RoValra API docs'],
+                description: [
+                    'Adds RoValra API documentation at https://www.roblox.com/rovalra-api-docs.',
+                    'The documentation is loaded from RoValra and is only available to accounts with access to it.',
+                ],
+                type: 'checkbox',
+                default: false,
+                childSettings: {
+                    privateApiDocsSidebarLinkEnabled: {
+                        label: 'RoValra API sidebar link',
+                        description:
+                            'Adds a RoValra API link below Communities in the Roblox sidebar.',
+                        type: 'checkbox',
+                        default: true,
+                    },
+                },
             },
             onboardingShown: {
                 label: ['Show onboarding'],
