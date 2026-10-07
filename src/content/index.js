@@ -1,3 +1,4 @@
+import './core/firefoxCompat.js';
 import { initializeObserver, startObserving } from './core/observer.js';
 import { getValidAccessToken } from './core/oauth/oauth.js';
 import { startAuthFavoriteCleanupMonitor } from './core/oauth/fallback.js';
@@ -37,6 +38,7 @@ import { init as initGroupFunds } from './features/navigation/groupfunds.js';
 import { init as initUrlTracker } from './core/utils/trackers/urlTracker.js';
 import { init as initCustomFont } from './features/sitewide/customFont.js';
 import { init as initRovalraImages } from './features/sitewide/rovalraImages.js';
+import { init as initCyrillicFont } from './features/sitewide/cyrillicFont.js';
 import { init as initCustomFavicon } from './features/sitewide/customFavicon.js';
 import { init as initTransactionsLink } from './features/navigation/transactionslink.js';
 import { initializeModernIcons as initModernIcons } from './features/sitewide/modernIcons.js';
@@ -49,6 +51,7 @@ import { init as initSidebarCollapse } from './features/sitewide/sidebarCollapse
 import { init as initSidebarLayout } from './features/sitewide/sidebarLayout.js';
 import { init as initTopbarLayout } from './features/sitewide/topbarLayout.js';
 import { init as initFriendUsernames } from './features/sitewide/friendUsernames.js';
+import { init as initSidebarVerifiedBadge } from './features/sitewide/sidebarVerifiedBadge.js';
 import { init as initWideTilePlayerCounts } from './features/sitewide/wideTilePlayerCounts.js';
 import { init as initPaymentMethodBonusItems } from './features/paymentmethods/bonusItems.js';
 import { init as initBackgroundImage } from './features/sitewide/backgroundImage.js';
@@ -264,6 +267,7 @@ const featureRoutes = [
             initStatus,
             initCustomFont,
             initRovalraImages,
+            initCyrillicFont,
             initCustomFavicon,
             initRobuxIcons,
             initMoreRobuxDigits,
@@ -282,6 +286,7 @@ const featureRoutes = [
             initVoiceBanIndicator,
             initTopbarLayout,
             initFriendUsernames,
+            initSidebarVerifiedBadge,
             initWideTilePlayerCounts,
             initBackgroundImage,
             initPerformanceMode,

@@ -891,7 +891,8 @@
                     "madeEs": "Helped make the Spanish locale",
                     "madeRu": "Helped make the Russian locale",
                     "madeFr": "Helped make the French locale",
-                    "madeZh": "Helped make the Chinese locale"
+                    "madeZh": "Helped make the Chinese locale",
+                    "madeVi": "Helped make the Vietnamese locale"
                 }
             },
             "ui": {
@@ -1135,7 +1136,12 @@
                 "followTerms": "Images must follow Roblox ToS",
                 "joinDiscord": "Join the RoValra Discord",
                 "agree": "Agree",
-                "agreeCountdown": "Agree ({{count}})"
+                "agreeCountdown": "Agree ({{count}})",
+                "preview": "Preview",
+                "previewTitle": "Preview Custom Badge",
+                "previewDescription": "Upload a WEBP image to see how it would look as a badge on your profile. The image is only kept in memory and is never uploaded or saved, it disappears when you leave or refresh the page.",
+                "previewTooltip": "Badge Preview",
+                "previewDone": "Done"
             },
             "githubSponsorBadge": {
                 "title": "GitHub Sponsors Profile Badge",
