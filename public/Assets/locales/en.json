@@ -380,7 +380,11 @@
         "myProfile": "My Profile",
         "disabled": "Disabled",
         "show": "Show",
-        "hide": "Hide"
+        "hide": "Hide",
+        "add": "Add",
+        "addButton": "Add button",
+        "buttonPlaceholder1": "Name",
+        "buttonPlaceholder2": "URL"
     },
     "topbarLayout": {
         "empty": "RoValra was unable to find any supported topbar items.",
@@ -696,6 +700,11 @@
     },
     "lastEquipped": {
         "label": "Last Equipped"
+    },
+    "ownedItemPrice": {
+        "label": "Price",
+        "free": "Free",
+        "offSale": "Off Sale"
     },
     "pendingRobux": {
         "tooltip": "This is an estimate of how many Robux from your pending balance will become available tomorrow, based on your transaction data. The actual amount may vary. And this may be inaccurate.",

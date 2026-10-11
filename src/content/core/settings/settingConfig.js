@@ -252,6 +252,13 @@ export const SETTINGS_CONFIG = {
                 default: true,
                 contributors: ['4866259395', '447170745'],
             },
+            ownedItemPriceEnabled: {
+                label: 'Price on Owned Item Pages',
+                description:
+                    'Shows the price of an item on its item page even when you already own it.',
+                type: 'checkbox',
+                default: true,
+            },
             itemTradingEnabled: {
                 label: 'Item Trading Info',
                 description: [
@@ -555,6 +562,14 @@ export const SETTINGS_CONFIG = {
                 type: 'checkbox',
                 default: true,
                 contributors: [476449201],
+            },
+            gameStatTimestampsEnabled: {
+                label: 'Detailed Created / Updated Dates',
+                description: [
+                    'Replaces the Created and Updated dates on experience pages with exact, clickable timestamps.',
+                ],
+                type: 'checkbox',
+                default: true,
             },
             updateHistoryEnabled: {
                 label: 'Update History',
@@ -1990,7 +2005,7 @@ export const SETTINGS_CONFIG = {
                         default: false,
                     },
                 },
-                contributors: ['1564574922'],
+                contributors: ['1564574922', '476449201'],
             },
             PlusPrivateServerTooltipEnabled: {
                 label: 'Roblox Plus Free Server Tooltip',
@@ -2455,7 +2470,6 @@ export const SETTINGS_CONFIG = {
                 type: 'checkbox',
                 default: false,
             },
-
             ExplorerEnabled: {
                 label: 'Explorer',
                 description: [
@@ -3119,6 +3133,54 @@ export const SETTINGS_CONFIG = {
                     },
                 },
             },
+            customScrollbarEnabled: {
+                label: 'Customize Scroll Bar',
+                description: [
+                    'Make Roblox scrollbars look the way you want.',
+                ],
+                type: 'checkbox',
+                default: false,
+                contributors: ['476449201'],
+                childSettings: {
+                    customScrollbarHide: {
+                        label: 'Hide Scroll Bar',
+                        description: 'Hide the scrollbar entirely.',
+                        type: 'checkbox',
+                        default: false,
+                    },
+                    customScrollbarWidth: {
+                        label: 'Width',
+                        description: 'Set the scrollbar width in pixels (1-24).',
+                        type: 'input',
+                        inputType: 'number',
+                        min: 1,
+                        max: 24,
+                        default: 8,
+                    },
+                    customScrollbarRadius: {
+                        label: 'Border Radius',
+                        description: 'Set the scrollbar corner radius in pixels (0-24).',
+                        type: 'input',
+                        inputType: 'number',
+                        min: 0,
+                        max: 24,
+                        default: 8,
+                    },
+                    customScrollbarThumbColor: {
+                        label: 'Thumb Color',
+                        description: 'Set the color of the moving scrollbar thumb.',
+                        type: 'color',
+                        default: '#4f545c',
+                    },
+                    customScrollbarTrackColor: {
+                        label: 'Track Color',
+                        description: 'Set the background color of the scrollbar.',
+                        type: 'color',
+                        default: '#202124',
+                    },
+                },
+            },
+
             customFaviconEnabled: {
                 label: 'Favicon Customization',
                 description: [
