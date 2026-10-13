@@ -304,6 +304,7 @@ function processDirectory(src, dest) {
 
 if (fs.existsSync('public')) {
     processDirectory('public', path.join(outDir, 'public'));
+    fs.copyFileSync('LICENSE', path.join(outDir, 'LICENSE'));
 
     const localeDirectory = path.join('public', 'Assets', 'locales');
     if (fs.existsSync(localeDirectory)) {
