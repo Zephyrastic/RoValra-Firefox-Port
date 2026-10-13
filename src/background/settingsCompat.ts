@@ -70,7 +70,9 @@ const getStoredSettingValue: (s: string) => Promise<any | undefined> = async (se
 
 const FLAT_SETTINGS_CONFIG: Record<string, any> = {};
 
-for (const category of Object.values(SETTINGS_CONFIG)) {
+for (const category of Object.values(SETTINGS_CONFIG) as {
+    settings: Record<string, any>;
+}[]) {
     for (const [key, value] of Object.entries(category.settings)) {
         FLAT_SETTINGS_CONFIG[key] = value;
     }
@@ -147,7 +149,10 @@ const init = (async () => {
             deletedOrReplacedKeys.push(key);
         }
     };
-    for (const [category, settings] of Object.entries(SETTINGS_CONFIG)) {
+    for (const [category, settings] of Object.entries(SETTINGS_CONFIG) as [
+        string,
+        { settings: Record<string, any> },
+    ][]) {
         for (const [setting, data] of Object.entries(settings.settings)) {
             if (data['locked'] !== undefined || data['deprecated'] !== undefined) {
                 let value = await getStoredSettingValue(setting);

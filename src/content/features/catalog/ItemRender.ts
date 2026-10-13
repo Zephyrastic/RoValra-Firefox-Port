@@ -441,7 +441,7 @@ function transformSkyboxImage(url: string, { angle = 0, darken = false } = {}) {
 
     return new Promise<string>((resolve) => {
         const img = new Image();
-        img.crossOrigin = 'Anonymous';
+        img.crossOrigin = 'anonymous';
         img.onload = () => {
             try {
                 const isRotated = Math.abs(angle) % 180 !== 0;
@@ -1701,7 +1701,7 @@ async function asyncInit() {
                 marketplace3DRenderHoverPreviewDisabled: false,
                 marketplace3DRenderItemOnly: false,
             },
-            (data) => {
+            (data: Record<string, any>) => {
                 itemOnlyEnabled = data.marketplace3DRenderItemOnly === true;
                 const modeExists = renderEnvironmentModeValues.has(
                     data.marketplace3DRenderEnvironment,
@@ -2163,7 +2163,7 @@ export function init() {
                 marketplace3DRenderActive: false,
                 marketplace3DPostProcessing: false,
             },
-            (result) => {
+            (result: Record<string, any>) => {
                 if (result.marketplace3DPostProcessing)
                     postProcessingEnabled = true;
 

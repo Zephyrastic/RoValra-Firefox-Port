@@ -11,7 +11,8 @@
     "clean": "rimraf dist",
     "clean:firefox": "rimraf dist-firefox",
     "lint": "eslint .",
-    "lint:firefox": "node scripts/lint-firefox.js"
+    "lint:firefox": "node scripts/lint-firefox.js",
+    "typecheck": "tsc-rs -p tsconfig.json"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -26,6 +27,7 @@
     "prettier-eslint": "^17.1.1",
     "rimraf": "^6.1.3",
     "sass": "^1.101.3",
+    "tsc-rs": "^0.6.0",
     "web-ext": "^10.7.0",
     "yaml": "^2.9.0"
   },

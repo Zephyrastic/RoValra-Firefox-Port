@@ -32,3 +32,6 @@ jobs:
             # and would redden every push until it is fully cleaned up.
             - name: Lint Firefox build
               run: npm run lint:firefox
+
+            - name: Typecheck
+              run: npm run typecheck

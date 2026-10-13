@@ -231,7 +231,7 @@ async function HandleMessage(request: RequestType) {
 async function OnMouseDown(event: MouseEvent) {
     if (event.button !== 2) return;
 
-    const link = event.target?.closest('a');
+    const link = (event.target as Element | null)?.closest('a');
     const ids = [];
     const translation = await t("viewid.viewId");
 
