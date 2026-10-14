@@ -50,6 +50,7 @@ import { init as initKidsThemeText } from './features/sitewide/kidsThemeText.js'
 import { init as initCustomRobloxBanner } from './features/sitewide/customRobloxBanner.js';
 import { init as initSidebarCollapse } from './features/sitewide/sidebarCollapse.js';
 import { init as initSidebarLayout } from './features/sitewide/sidebarLayout.js';
+import { init as initHideFriendRequestCount } from './features/sitewide/hideFriendRequestCount.js';
 import { init as initTopbarLayout } from './features/sitewide/topbarLayout.js';
 import { init as initFriendUsernames } from './features/sitewide/friendUsernames.js';
 import { init as initSidebarVerifiedBadge } from './features/sitewide/sidebarVerifiedBadge.js';
@@ -97,6 +98,7 @@ import { init as initBadgeOwnership } from './features/games/badgeOwnership.js';
 import { init as initBadgeEarnedDate } from './features/games/badgeEarnedDate.js';
 import { init as initBadgeSort } from './features/games/badgeSort.js';
 import { init as initGameStatTimestamps } from './features/games/gameStatTimestamps.js';
+import { init as initFreeBadgeQuota } from './features/games/freeBadgeQuota.js';
 import { init as initServerList } from './features/games/serverlist/serverlist.js';
 import { initRecentServers } from './features/games/serverlist/recentservers.js';
 import { init as initRegionPlayButton } from './features/games/RegionPlayButton.js';
@@ -289,6 +291,7 @@ const featureRoutes = [
             initCustomRobloxBanner,
             initSidebarCollapse,
             initSidebarLayout,
+            initHideFriendRequestCount,
             initVoiceBanIndicator,
             initTopbarLayout,
             initFriendUsernames,
@@ -391,6 +394,7 @@ const featureRoutes = [
     {
         paths: ['/games/', '/private-games'],
         features: [
+            initFreeBadgeQuota,
             initDevProductLoader,
             initSubplaces,
             initTotalSpentGames,

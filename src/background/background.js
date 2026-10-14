@@ -17,6 +17,7 @@ import { collectProxyResponseHeaders } from '../shared/proxyHeaders.js';
 import { uint8ToBase64 } from '../shared/base64.js';
 
 initializeTelemetryBlocker();
+import { setupNotifications } from './notifications.js';
 
 // --- Constants & State ---
 
@@ -2458,3 +2459,4 @@ updateAvatarRotator();
 setupContextMenuListener();
 updateBannedUserListener();
 updatePrivateGameListener();
+setupNotifications(callRobloxApiBackground);
