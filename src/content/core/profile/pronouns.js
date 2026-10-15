@@ -15,12 +15,13 @@ const NON_PRONOUN_CHARACTER_SEQUENCE =
     // eslint-disable-next-line no-misleading-character-class
     /[^\p{L}\p{M}\p{N}\p{Zs}\p{Extended_Pictographic}\p{Emoji_Modifier}\u200D\uFE0E\uFE0F\u{1F1E6}-\u{1F1FF}]+/gu;
 
-const graphemeSegmenter =
-    typeof Intl.Segmenter === 'function'
-        ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
-        : null;
+let graphemeSegmenter;
 
 function getGraphemes(value) {
+    graphemeSegmenter ??=
+        typeof Intl.Segmenter === 'function'
+            ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+            : null;
     if (graphemeSegmenter) {
         return Array.from(graphemeSegmenter.segment(value), (item) =>
             String(item.segment),
