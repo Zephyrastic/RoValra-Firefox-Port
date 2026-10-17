@@ -33,7 +33,6 @@ import { init as initDevPanel } from './features/dev/devPanel.js';
 import { init as initRichRobloxLinks } from './features/sitewide/richRobloxLinks.js';
 import { init as initViewIds } from './features/sitewide/viewid.js';
 import { init as initQuickSearch } from './features/navigation/search/quicksearch.js';
-import { init as initRenderTest } from './features/developer/rendertest.js';
 import { init as initGroupFunds } from './features/navigation/groupfunds.js';
 import { init as initUrlTracker } from './core/utils/trackers/urlTracker.js';
 import { init as initCustomFont } from './features/sitewide/customFont.js';
@@ -86,7 +85,6 @@ import { init as initRecentlyViewed } from './features/catalog/recentlyViewed.js
 import { init as initItemTrading } from './features/catalog/ItemTrading.js';
 import { init as initLastEquipped } from './features/catalog/lastEquipped.js';
 import { init as initOwnedItemPrice } from './features/catalog/ownedItemPrice.js';
-import { init as initItemRender } from './features/catalog/ItemRender.js';
 import { init as initFriendOwnership } from './features/catalog/friendOwnership.js';
 
 // Games
@@ -164,7 +162,6 @@ import { init as initPreviousPrice } from './features/sitewide/PreviousPrice.js'
 import { init as initCategorizeWearing } from './features/profile/categorizeWearing.js';
 import { init as initBannedUsers } from './features/profile/bannedusers.js';
 import { init as initTrustedFriends } from './features/profile/trustedfriends.js';
-import { init as initProfileRender } from './features/profile/header/ProfileRender.js';
 import { init as initProfileTestTab } from './features/profile/testTab.js';
 import { init as initProfileShowcase } from './features/profile/showcase.js';
 import { init as initStatus } from './features/profile/header/status.js';
@@ -215,7 +212,6 @@ import { init as initHideAddFriendsButton } from './features/home/hideAddFriends
 import { init as initFriendsCarouselRedesign } from './features/home/friendsCarouselRedesign.js';
 import { init as initPinnedFriends } from './features/sitewide/pinnedFriends.js';
 // create
-import { init as initCreateDownload } from './features/create.roblox.com/download.js';
 import { init as initCatalogExplorer } from './features/catalog/explorer.js';
 import {
     enforceSettingOverrides,
@@ -224,6 +220,23 @@ import {
 import { refreshRemoteSettingLocks } from './core/settings/remoteSettingLocks.js';
 // buy page
 import { initBuyRobuxPage as initSendRobuxBuyPage } from './features/plus/sendRobux.js';
+
+const lazyInit = (load) => () =>
+    load()
+        .then((module) => module.init())
+        .catch((error) => console.error('RoValra: Feature init failed', error));
+const initItemRender = lazyInit(
+    () => import('./features/catalog/ItemRender.js'),
+);
+const initProfileRender = lazyInit(
+    () => import('./features/profile/header/ProfileRender.js'),
+);
+const initCreateDownload = lazyInit(
+    () => import('./features/create.roblox.com/download.js'),
+);
+const initRenderTest = lazyInit(
+    () => import('./features/developer/rendertest.js'),
+);
 
 let pageLoaded = false;
 let lastPath = window.location.pathname.toLowerCase();
@@ -266,7 +279,6 @@ const featureRoutes = [
             initBetaPrograms,
             initPreviousPrice,
             initQuickSearch,
-            initRenderTest,
             initPrivateGames,
             initBannedUsers,
             initGroupFunds,
@@ -430,6 +442,11 @@ const featureRoutes = [
             initMultiEquip,
             initBodyColors,
         ],
+    },
+    {
+        paths: ['/render'],
+        once: true,
+        features: [initRenderTest],
     },
     // Roblox Plus Page
     {

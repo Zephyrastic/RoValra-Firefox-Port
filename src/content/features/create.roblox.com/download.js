@@ -8,6 +8,7 @@ import { createDropdownContent } from '../../core/ui/selects.js';
 import { API, fileMeshToTHREEGeometry } from 'roavatar-renderer';
 import * as THREE from 'three';
 import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js';
+import '../../core/utils/renderer.js';
 
 function saveAsFile(data, fileName, mimeType) {
     const blob = new Blob([data], { type: mimeType });

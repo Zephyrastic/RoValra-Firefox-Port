@@ -1,4 +1,3 @@
-import { Asset } from 'roavatar-renderer';
 import {
     getPlaceIdFromUrl,
     getAssetIdFromUrl,

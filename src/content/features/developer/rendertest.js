@@ -1,4 +1,5 @@
 import { observeElement } from '../../core/observer.js';
+import '../../core/utils/renderer.js';
 import { getUserAvatar } from '../../core/apis/avatar.js';
 import { 
     RegisterWrappers, 

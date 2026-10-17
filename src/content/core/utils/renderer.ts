@@ -7,6 +7,12 @@ import {
     Vec4,
 } from 'roavatar-renderer';
 
+FLAGS.ASSETS_PATH = chrome.runtime.getURL('assets/rbxasset/');
+FLAGS.USE_WORKERS = false;
+FLAGS.ONLINE_ASSETS = true;
+FLAGS.AUDIO_ENABLED = false;
+backgroundRendererRequests();
+
 /**
  * Sends roavatar-renderer assetdelivery requests to background to avoid CORS issues
  */
