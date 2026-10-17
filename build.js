@@ -73,7 +73,7 @@ const commonConfig = {
     minifySyntax: true,
     minifyIdentifiers: false,
 
-    keepNames: true,
+    keepNames: false,
 
     logLevel: 'info',
 
