@@ -1,5 +1,10 @@
 let observerInitialized = false;
 const observationRequests = new Set();
+// Features re-run their init() on every SPA navigation, and each run used to
+// add another permanent request for the same selector. Requests are keyed by
+// selector + callback source + call site, and re-registering from the same
+// site replaces the previous request instead of stacking a duplicate.
+const requestsBySignature = new Map();
 let globalObserver = null;
 let attributeListeners = new Map();
 // WeakMap: entries vanish with their element, so SPA navigation cannot
@@ -200,17 +205,38 @@ export const observeElement = (selector, callback, options = {}) => {
     const isMultiple = options.multiple || false;
     const root = options.root || options.scope || document;
 
+    const site = new Error().stack;
+    const signature =
+        root === document
+            ? `${selector}\n${isMultiple}\n${callback}\n${options.onRemove}`
+            : null;
+    if (signature) {
+        requestsBySignature
+            .get(signature)
+            ?.find((previous) => previous.site === site)
+            ?.disconnect();
+    }
+
     const request = {
         selector,
         callback,
         onRemove: options.onRemove,
         multiple: isMultiple,
         root,
+        site,
+        signature,
         active: true,
         disconnect() {
             if (!this.active) return;
             this.active = false;
             observationRequests.delete(this);
+            if (this.signature) {
+                const sameSignature = requestsBySignature.get(this.signature);
+                sameSignature.splice(sameSignature.indexOf(this), 1);
+                if (sameSignature.length === 0) {
+                    requestsBySignature.delete(this.signature);
+                }
+            }
 
             if (this.multiple) {
                 for (const element of [...this.elements]) {
@@ -223,6 +249,11 @@ export const observeElement = (selector, callback, options = {}) => {
         ...(isMultiple ? { elements: new Set() } : { element: null }),
     };
     observationRequests.add(request);
+    if (signature) {
+        const sameSignature = requestsBySignature.get(signature);
+        if (sameSignature) sameSignature.push(request);
+        else requestsBySignature.set(signature, [request]);
+    }
 
     if (isMultiple) {
         root.querySelectorAll(selector).forEach((element) => {

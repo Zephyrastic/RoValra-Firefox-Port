@@ -658,17 +658,17 @@ export function init() {
             }
             rerenderCurrentProfileBadges();
         });
-    }
 
-    document.addEventListener('rovalra:assetsUpdated', () => {
-        document
-            .querySelectorAll('[data-rovalra-badge-config]')
-            .forEach((icon) => {
-                const badge = BADGE_CONFIG[icon.dataset.rovalraBadgeConfig];
-                if (!badge) return;
-                applyBadgeIconStyle(icon, badge);
-            });
-    });
+        document.addEventListener('rovalra:assetsUpdated', () => {
+            document
+                .querySelectorAll('[data-rovalra-badge-config]')
+                .forEach((icon) => {
+                    const badge = BADGE_CONFIG[icon.dataset.rovalraBadgeConfig];
+                    if (!badge) return;
+                    applyBadgeIconStyle(icon, badge);
+                });
+        });
+    }
 
     const badgePreviewRequested = isBadgePreviewRequested();
 

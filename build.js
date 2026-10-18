@@ -224,6 +224,19 @@ esbuild
                   },
               }),
     })
+    .then(() => {
+        // V8 stores a script's whole source as UTF-16 when it contains a
+        // single character above U+00FF (esbuild cannot escape those inside
+        // tagged templates or regex literals), which doubles the resident
+        // source in every Roblox tab (~10 MB measured).
+        const contentFile = `${outDir}/content.js`;
+        const source = fs.readFileSync(contentFile, 'utf8');
+        const asciiSource = source.replace(
+            /[\u0080-\uffff]/g,
+            (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'),
+        );
+        if (asciiSource !== source) fs.writeFileSync(contentFile, asciiSource);
+    })
     .catch(() => process.exit(1));
 if (fs.existsSync(cssDir)) {
     const cssFiles = fs

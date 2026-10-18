@@ -2129,22 +2129,27 @@ async function asyncInit() {
 
 let animationLoopStarted = false;
 
-export function init() {
-    chrome.storage.onChanged.addListener((changes: any, areaName: any) => {
-        if (
-            areaName !== 'local' ||
-            !changes.marketplace3DRenderHoverPreviewDisabled
-        ) {
-            return;
-        }
+let storageListenerAttached = false;
 
-        hoverPreviewEnabled =
-            !changes.marketplace3DRenderHoverPreviewDisabled.newValue;
-        if (!hoverPreviewEnabled) {
-            removeCurrentHoveredItemData();
-            itemHoverScene.noRect();
-        }
-    });
+export function init() {
+    if (!storageListenerAttached) {
+        storageListenerAttached = true;
+        chrome.storage.onChanged.addListener((changes: any, areaName: any) => {
+            if (
+                areaName !== 'local' ||
+                !changes.marketplace3DRenderHoverPreviewDisabled
+            ) {
+                return;
+            }
+
+            hoverPreviewEnabled =
+                !changes.marketplace3DRenderHoverPreviewDisabled.newValue;
+            if (!hoverPreviewEnabled) {
+                removeCurrentHoveredItemData();
+                itemHoverScene.noRect();
+            }
+        });
+    }
 
     //disable main renderer on pages that dont use it
     if (
@@ -2176,8 +2181,10 @@ export function init() {
     });
 
     //update z-index for elements so theyre above renderer canvas
+    if (document.getElementById('rovalra-item-render-style')) return;
     const styleString = 'style'; //supress warning because i think a css file just for setting z-index is unnecessary
     const customStyle = document.createElement(styleString);
+    customStyle.id = 'rovalra-item-render-style';
     customStyle.innerText = `
     .add-to-cart-btn-container {
         z-index: 2;
