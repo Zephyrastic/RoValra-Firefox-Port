@@ -33,6 +33,7 @@ import {
     refreshRemoteSettingLocks,
 } from './remoteSettingLocks.js';
 import { sanitizeBackgroundImage } from '../backgroundImage.js';
+import { sanitizeSavedThemes, sanitizeThemeVariables } from '../themeVariables.js';
 import './settingsCompat';
 
 let currentUserTierLoaded = false;
@@ -716,6 +717,14 @@ export const handleSaveSettings = async (settingName, value) => {
 
                 case 'backgroundImage':
                     sanitizedValue = sanitizeBackgroundImage(value);
+                    break;
+
+                case 'themeVariables':
+                    sanitizedValue = sanitizeThemeVariables(value);
+                    break;
+
+                case 'savedThemeVariables':
+                    sanitizedValue = sanitizeSavedThemes(value);
                     break;
             }
         }

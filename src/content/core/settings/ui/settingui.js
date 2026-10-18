@@ -100,6 +100,10 @@ const INCOMPATIBILITY_DETECTIONS = [
         name: 'BTRoblox',
         selector: 'html[btr-loaded="true"]',
     },
+        {
+        name: 'RoUtility', // :<
+        selector: 'html[data-routility-life]',
+    },
 ];
 
 function getDetectedIncompatibilities() {

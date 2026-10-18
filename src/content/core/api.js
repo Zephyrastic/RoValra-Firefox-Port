@@ -325,6 +325,13 @@ export async function callRobloxApi(options) {
         }
 
         if (useBackground) {
+            if (isRovalraApi && subdomain === 'apis' && !skipAutoAuth) {
+                const token = await getValidAccessToken();
+                if (token) {
+                    normalizedHeaders.set('Authorization', `Bearer ${token}`);
+                }
+            }
+
             return new Promise((resolve) => {
                 chrome.runtime.sendMessage(
                     {
@@ -332,6 +339,7 @@ export async function callRobloxApi(options) {
                         options: {
                             endpoint,
                             subdomain,
+                            isRovalraApi,
                             fullUrl: customFullUrl,
                             method,
                             body,

@@ -1,10 +1,17 @@
 import { sanitizeBackgroundImage } from '../backgroundImage.js';
+import {
+    sanitizeSavedThemes,
+    sanitizeThemeVariables,
+} from '../themeVariables.js';
 
 // Technically not in use but still nice to have
 export function sanitizeString(str) {
     if (typeof str !== 'string') return str;
 
-    str = str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ''); // Remove scripts
+    str = str.replace(
+        /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+        '',
+    ); // Remove scripts
 
     str = str.replace(/on\w+\s*=\s*["'][^"']*["']/gi, ''); // remove on[events]
     str = str.replace(/on\w+\s*=\s*[^\s>]*/gi, ''); // remove on[events]
@@ -20,11 +27,13 @@ export function sanitizeString(str) {
     str = str.replace(/vbscript:/gi, ''); // no vbscript
 
     //str = str.replace(/<[^>]*>/g, ''); // [OLD] removed all elements
-    str = str.replace(/<(?!\/?icon(?:\s+(?:material|rovalra|fill|filled|size=(?:"[^\\"]*"|'[^\\']*')))*\s*\/?>)[^>]*>/g, ''); // newer version of above but allows icon elements
+    str = str.replace(
+        /<(?!\/?icon(?:\s+(?:material|rovalra|fill|filled|size=(?:"[^\\"]*"|'[^\\']*')))*\s*\/?>)[^>]*>/g,
+        '',
+    ); // newer version of above but allows icon elements
 
     return str;
 }
-
 
 export function htmlEncode(str) {
     if (typeof str !== 'string') return str;
@@ -34,11 +43,9 @@ export function htmlEncode(str) {
     return div.innerHTML;
 }
 
-
 export function createSafeTextNode(str) {
     return document.createTextNode(String(str));
 }
-
 
 export function setSafeText(element, text) {
     if (!element || !(element instanceof HTMLElement)) {
@@ -53,25 +60,38 @@ export function setSafeText(element, text) {
     return element;
 }
 
-
 export function setSafeAttribute(element, attrName, attrValue) {
     if (!element || !(element instanceof HTMLElement)) {
         console.warn('setSafeAttribute: Invalid element provided');
         return element;
     }
 
-    const dangerousAttrs = ['onclick', 'onload', 'onerror', 'onmouseover', 'onfocus', 'onblur'];
+    const dangerousAttrs = [
+        'onclick',
+        'onload',
+        'onerror',
+        'onmouseover',
+        'onfocus',
+        'onblur',
+    ];
 
     if (dangerousAttrs.includes(attrName.toLowerCase())) {
-        console.warn(`setSafeAttribute: Blocked dangerous attribute: ${attrName}`);
+        console.warn(
+            `setSafeAttribute: Blocked dangerous attribute: ${attrName}`,
+        );
         return element;
     }
 
     const sanitized = sanitizeString(String(attrValue));
 
-    if ((attrName.toLowerCase() === 'href' || attrName.toLowerCase() === 'src')) {
-        if (sanitized.toLowerCase().includes('javascript:') || sanitized.toLowerCase().includes('data:text/html')) {
-            console.warn(`setSafeAttribute: Blocked dangerous ${attrName} value`);
+    if (attrName.toLowerCase() === 'href' || attrName.toLowerCase() === 'src') {
+        if (
+            sanitized.toLowerCase().includes('javascript:') ||
+            sanitized.toLowerCase().includes('data:text/html')
+        ) {
+            console.warn(
+                `setSafeAttribute: Blocked dangerous ${attrName} value`,
+            );
             return element;
         }
     }
@@ -99,7 +119,7 @@ export function sanitizeObject(obj) {
     }
 
     if (Array.isArray(obj)) {
-        return obj.map(item => sanitizeObject(item));
+        return obj.map((item) => sanitizeObject(item));
     }
 
     if (typeof obj === 'object') {
@@ -138,20 +158,30 @@ export function sanitizeSettings(settings, findSettingConfig = null) {
             switch (settingDef.type) {
                 case 'checkbox':
                     if (value !== true && value !== false && value !== null) {
-                        console.warn(`Sanitizing: Invalid boolean value for '${key}' - setting to default`);
+                        console.warn(
+                            `Sanitizing: Invalid boolean value for '${key}' - setting to default`,
+                        );
                         sanitizedValue = settingDef.default ?? false;
                     }
                     break;
 
                 case 'number':
                     if (typeof value !== 'number' || isNaN(value)) {
-                        console.warn(`Sanitizing: Invalid number value for '${key}' - setting to default`);
+                        console.warn(
+                            `Sanitizing: Invalid number value for '${key}' - setting to default`,
+                        );
                         sanitizedValue = settingDef.default ?? 0;
                     } else {
-                        if (settingDef.min !== undefined && value < settingDef.min) {
+                        if (
+                            settingDef.min !== undefined &&
+                            value < settingDef.min
+                        ) {
                             sanitizedValue = settingDef.min;
                         }
-                        if (settingDef.max !== undefined && value > settingDef.max) {
+                        if (
+                            settingDef.max !== undefined &&
+                            value > settingDef.max
+                        ) {
                             sanitizedValue = settingDef.max;
                         }
                     }
@@ -162,18 +192,27 @@ export function sanitizeSettings(settings, findSettingConfig = null) {
                     if (value === null) {
                         sanitizedValue = null;
                     } else if (typeof value !== 'string') {
-                        console.warn(`Sanitizing: Invalid string value for '${key}' - setting to default`);
+                        console.warn(
+                            `Sanitizing: Invalid string value for '${key}' - setting to default`,
+                        );
                         sanitizedValue = settingDef.default ?? '';
                     } else {
                         sanitizedValue = sanitizeString(value);
 
-                        if (settingDef.type === 'select' && settingDef.options && Array.isArray(settingDef.options)) {
-                            const validValues = settingDef.options.map(opt =>
-                                typeof opt === 'object' ? opt.value : opt
+                        if (
+                            settingDef.type === 'select' &&
+                            settingDef.options &&
+                            Array.isArray(settingDef.options)
+                        ) {
+                            const validValues = settingDef.options.map((opt) =>
+                                typeof opt === 'object' ? opt.value : opt,
                             );
                             if (!validValues.includes(sanitizedValue)) {
-                                console.warn(`Sanitizing: Invalid select value '${sanitizedValue}' for '${key}' - setting to default`);
-                                sanitizedValue = settingDef.default ?? validValues[0];
+                                console.warn(
+                                    `Sanitizing: Invalid select value '${sanitizedValue}' for '${key}' - setting to default`,
+                                );
+                                sanitizedValue =
+                                    settingDef.default ?? validValues[0];
                             }
                         }
                     }
@@ -182,14 +221,27 @@ export function sanitizeSettings(settings, findSettingConfig = null) {
                 case 'file':
                     if (value === null) {
                         sanitizedValue = null;
-                    } else if (typeof value !== 'string' || !value.startsWith('data:image/')) {
-                        console.warn(`Sanitizing: Invalid image data for '${key}' - clearing`);
+                    } else if (
+                        typeof value !== 'string' ||
+                        !value.startsWith('data:image/')
+                    ) {
+                        console.warn(
+                            `Sanitizing: Invalid image data for '${key}' - clearing`,
+                        );
                         sanitizedValue = null;
                     }
                     break;
 
                 case 'backgroundImage':
                     sanitizedValue = sanitizeBackgroundImage(value);
+                    break;
+
+                case 'themeVariables':
+                    sanitizedValue = sanitizeThemeVariables(value);
+                    break;
+
+                case 'savedThemeVariables':
+                    sanitizedValue = sanitizeSavedThemes(value);
                     break;
 
                 default:
@@ -208,14 +260,20 @@ export function sanitizeSettings(settings, findSettingConfig = null) {
     return sanitized;
 }
 
-
 export function sanitizeApiResponse(data) {
     if (data === null || data === undefined) {
         return data;
     }
 
     if (typeof data === 'object' && !Array.isArray(data)) {
-        const technicalFields = ['status', 'statusText', 'ok', 'redirected', 'type', 'url'];
+        const technicalFields = [
+            'status',
+            'statusText',
+            'ok',
+            'redirected',
+            'type',
+            'url',
+        ];
         const sanitized = {};
 
         for (const [key, value] of Object.entries(data)) {
@@ -231,7 +289,6 @@ export function sanitizeApiResponse(data) {
 
     return sanitizeObject(data);
 }
-
 
 export function validateSettingValue(value, constraints = {}) {
     if (constraints.type) {
